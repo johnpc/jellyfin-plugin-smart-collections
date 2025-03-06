@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Smart Collections</title>
+  </head>
+
+  <body>
+    <div
+      data-role="page"
+      class="page type-interior pluginConfigurationPage tbsConfigurationPage"
+      data-require="emby-input,emby-button"
+    >
+      <div data-role="content">
+        <div class="content-primary">
+          <form class="tbsConfigurationPage">
+            <div class="sectionTitleContainer flex align-items-center">
+              <h2 class="sectionTitle">Smart Collections</h2>
+              <a
+                is="emby-linkbutton"
+                class="raised button-alt headerHelpButton emby-button"
+                target="_blank"
+                href="https://github.com/johnpc/jellyfin-plugin-smart-collections"
+                >Help</a
+              >
+            </div>
+            <div class="verticalSection">
+              <input is="emby-input" id="csv-input" type="text" data-id="txtTagCsv" required="required"
+                  label="Comma separated tags:" />
+              <br />
+              <button id="saveConfiguration" is="emby-button" class="raised button-submit block">
+                  <span>Save</span>
+              </button>
+
+            </div>
+            <br />
+            <button
+              is="emby-button"
+              type="button"
+              class="raised block"
+              id="sync-smart-collections"
+              onclick="execute()"
+            >
+              <span>Sync Smart Collections for Tags</span>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <script type="text/javascript" defer>
+        function loadConfig() {
+            window.ApiClient.getPluginConfiguration("09612e52-0f93-41ab-a6ab-5a19479f5315") // Plugin Id
+                .then(function (config) {
+                    document.querySelector("#csv-input").value = config.Tags.join(',')
+                })
+                .catch(function (error) {
+                    console.error(error);
+                })
+        }
+        function saveConfig() {
+          var csv = document.querySelector("#csv-input").value;
+          var config = {
+            Tags: csv.split(',').map(s => s.trim())
+          }
+          window.ApiClient.updatePluginConfiguration("09612e52-0f93-41ab-a6ab-5a19479f5315", config)
+            .then(() => alert("Update success"))
+            .catch(function (error) {
+                console.error(error);
+            })
+        }
+        function execute() {
+          var request = {
+            url: ApiClient.getUrl("/SmartCollections/SmartCollections"),
+            type: "POST",
+          };
+
+          ApiClient.fetch(request)
+            .then(function () {
+              Dashboard.alert("Executing Smart Collections...");
+            })
+            .catch(function () {
+              Dashboard.alert({
+                message: "Unexpected error occurred!",
+              });
+            });
+        }
+
+        loadConfig();
+        const element = document.querySelector('#saveConfiguration');
+        element.addEventListener('click', saveConfig)
+      </script>
+    </div>
+  </body>
+</html>

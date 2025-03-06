@@ -1,0 +1,21 @@
+[
+    {
+        "guid": "09612e52-0f93-41ab-a6ab-5a19479f5315",
+        "name": "Smart Collections",
+        "overview": "Enables creation of Smart Collections based on Tag",
+        "description": "Enables creation of Smart Collections based on Tag",
+        "owner": "johnpc",
+        "category": "General",
+        "versions": [
+            {
+                "version": "0.0.0.1",
+                "changelog": "Initial Release",
+                "targetAbi": "10.8.10.0",
+                "sourceUrl": "https://github.com/johnpc/jellyfin-plugin-smart-collections/releases/download/0.0.0.1/smart-collections-0.0.0.1.zip",
+                "checksum": "10110a16be92f4e8de84ac0c19fc316c",
+                "timestamp": "2025-06-06T01:40:00Z"
+            }
+        ]
+    }
+
+]
