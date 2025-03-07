@@ -41,28 +41,52 @@ namespace Jellyfin.Plugin.SmartCollections
             Directory.CreateDirectory(_pluginDirectory);
         }
 
-        private IEnumerable<Series> GetSeriesFromLibrary(string tag)
+        private IEnumerable<Series> GetSeriesFromLibrary(string term)
         {
-            return _libraryManager.GetItemList(new InternalItemsQuery
+            var byTags = _libraryManager.GetItemList(new InternalItemsQuery
             {
                 IncludeItemTypes = new[] { BaseItemKind.Series },
                 IsVirtualItem = false,
                 Recursive = true,
                 HasTvdbId = true,
-                Tags = [tag]
+                Tags = [term]
             }).Select(m => m as Series);
+
+            var byGenres = _libraryManager.GetItemList(new InternalItemsQuery
+            {
+                IncludeItemTypes = new[] { BaseItemKind.Series },
+                IsVirtualItem = false,
+                Recursive = true,
+                HasTvdbId = true,
+                Genres = [term]
+            }).Select(m => m as Series);
+
+            // Combine results and remove duplicates
+            return byTags.Union(byGenres);
         }
 
-        private IEnumerable<Movie> GetMoviesFromLibrary(string tag)
+        private IEnumerable<Movie> GetMoviesFromLibrary(string term)
         {
-            return _libraryManager.GetItemList(new InternalItemsQuery
+            var byTags = _libraryManager.GetItemList(new InternalItemsQuery
             {
                 IncludeItemTypes = new[] { BaseItemKind.Movie },
                 IsVirtualItem = false,
                 Recursive = true,
                 HasTvdbId = false,
-                Tags = [tag]
+                Tags = [term]
             }).Select(m => m as Movie);
+
+            var byGenres = _libraryManager.GetItemList(new InternalItemsQuery
+            {
+                IncludeItemTypes = new[] { BaseItemKind.Movie },
+                IsVirtualItem = false,
+                Recursive = true,
+                HasTvdbId = false,
+                Genres = [term]
+            }).Select(m => m as Movie);
+
+            // Combine results and remove duplicates
+            return byTags.Union(byGenres);
         }
 
         private async Task RemoveUnwantedMediaItems(BoxSet collection, IEnumerable<BaseItem> wantedMediaItems)

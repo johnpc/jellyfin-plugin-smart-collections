@@ -24,13 +24,22 @@
               >
             </div>
             <div class="verticalSection">
-              <input is="emby-input" id="csv-input" type="text" data-id="txtTagCsv" required="required"
-                  label="Comma separated tags:" />
+              <input
+                is="emby-input"
+                id="csv-input"
+                type="text"
+                data-id="txtTagCsv"
+                required="required"
+                label="Comma separated tags:"
+              />
               <br />
-              <button id="saveConfiguration" is="emby-button" class="raised button-submit block">
-                  <span>Save</span>
+              <button
+                id="saveConfiguration"
+                is="emby-button"
+                class="raised button-submit block"
+              >
+                <span>Save</span>
               </button>
-
             </div>
             <br />
             <button
@@ -48,24 +57,30 @@
 
       <script type="text/javascript" defer>
         function loadConfig() {
-            window.ApiClient.getPluginConfiguration("09612e52-0f93-41ab-a6ab-5a19479f5315") // Plugin Id
-                .then(function (config) {
-                    document.querySelector("#csv-input").value = config.Tags.join(',')
-                })
-                .catch(function (error) {
-                    console.error(error);
-                })
+          window.ApiClient.getPluginConfiguration(
+            "09612e52-0f93-41ab-a6ab-5a19479f5315",
+          ) // Plugin Id
+            .then(function (config) {
+              document.querySelector("#csv-input").value =
+                config.Tags.join(",");
+            })
+            .catch(function (error) {
+              console.error(error);
+            });
         }
         function saveConfig() {
           var csv = document.querySelector("#csv-input").value;
           var config = {
-            Tags: csv.split(',').map(s => s.trim())
-          }
-          window.ApiClient.updatePluginConfiguration("09612e52-0f93-41ab-a6ab-5a19479f5315", config)
+            Tags: csv.split(",").map((s) => s.trim()),
+          };
+          window.ApiClient.updatePluginConfiguration(
+            "09612e52-0f93-41ab-a6ab-5a19479f5315",
+            config,
+          )
             .then(() => alert("Update success"))
             .catch(function (error) {
-                console.error(error);
-            })
+              console.error(error);
+            });
         }
         function execute() {
           var request = {
@@ -85,8 +100,8 @@
         }
 
         loadConfig();
-        const element = document.querySelector('#saveConfiguration');
-        element.addEventListener('click', saveConfig)
+        const element = document.querySelector("#saveConfiguration");
+        element.addEventListener("click", saveConfig);
       </script>
     </div>
   </body>
