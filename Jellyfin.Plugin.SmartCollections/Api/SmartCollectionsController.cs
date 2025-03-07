@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Collections;
+using MediaBrowser.Controller.Providers;
 
 namespace Jellyfin.Plugin.SmartCollections.Api
 {
@@ -26,13 +27,14 @@ namespace Jellyfin.Plugin.SmartCollections.Api
         /// Initializes a new instance of <see cref="SmartCollectionsController"/>.
 
         public SmartCollectionsController(
+            IProviderManager providerManager,
             ICollectionManager collectionManager,
             ILibraryManager libraryManager,
             ILogger<SmartCollectionsManager> logger,
             IApplicationPaths applicationPaths
         )
         {
-            _syncSmartCollectionsManager = new SmartCollectionsManager(collectionManager, libraryManager, logger, applicationPaths);
+            _syncSmartCollectionsManager = new SmartCollectionsManager(providerManager, collectionManager, libraryManager, logger, applicationPaths);
             _logger = logger;
         }
 

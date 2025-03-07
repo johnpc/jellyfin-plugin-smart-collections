@@ -8,6 +8,7 @@ using MediaBrowser.Model.Serialization;
 using MediaBrowser.Controller.Library;
 using Microsoft.Extensions.Logging;
 using MediaBrowser.Controller.Collections;
+using MediaBrowser.Controller.Providers;
 
 namespace Jellyfin.Plugin.SmartCollections
 {
@@ -19,12 +20,14 @@ namespace Jellyfin.Plugin.SmartCollections
             IServerApplicationPaths appPaths,
             IXmlSerializer xmlSerializer,
             ICollectionManager collectionManager,
+            IProviderManager providerManager,
             ILibraryManager libraryManager,
             ILoggerFactory loggerFactory)
             : base(appPaths, xmlSerializer)
         {
             Instance = this;
             _syncSmartCollectionsManager = new SmartCollectionsManager(
+                providerManager,
                 collectionManager,
                 libraryManager,
                 loggerFactory.CreateLogger<SmartCollectionsManager>(),

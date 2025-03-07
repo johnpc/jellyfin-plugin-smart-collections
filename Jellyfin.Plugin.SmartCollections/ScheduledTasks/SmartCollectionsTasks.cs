@@ -7,6 +7,7 @@ using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Collections;
+using MediaBrowser.Controller.Providers;
 
 namespace Jellyfin.Plugin.SmartCollections.ScheduledTasks
 {
@@ -15,10 +16,10 @@ namespace Jellyfin.Plugin.SmartCollections.ScheduledTasks
         private readonly ILogger<SmartCollectionsManager> _logger;
         private readonly SmartCollectionsManager _syncSmartCollectionsManager;
 
-        public ExecuteSmartCollectionsTask(ICollectionManager collectionManager, ILibraryManager libraryManager, ILogger<SmartCollectionsManager> logger, IApplicationPaths applicationPaths)
+        public ExecuteSmartCollectionsTask(IProviderManager providerManager, ICollectionManager collectionManager, ILibraryManager libraryManager, ILogger<SmartCollectionsManager> logger, IApplicationPaths applicationPaths)
         {
             _logger = logger;
-            _syncSmartCollectionsManager = new SmartCollectionsManager(collectionManager, libraryManager, logger, applicationPaths);
+            _syncSmartCollectionsManager = new SmartCollectionsManager(providerManager, collectionManager, libraryManager, logger, applicationPaths);
         }
 
         public Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)

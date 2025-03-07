@@ -17,6 +17,7 @@ using Microsoft.Extensions.Logging;
 using Jellyfin.Data.Enums;
 using Jellyfin.Data.Entities;
 using MediaBrowser.Controller.Collections;
+using MediaBrowser.Controller.Providers;
 
 namespace Jellyfin.Plugin.SmartCollections
 
@@ -27,12 +28,14 @@ namespace Jellyfin.Plugin.SmartCollections
     {
         private readonly ICollectionManager _collectionManager;
         private readonly ILibraryManager _libraryManager;
+        private readonly IProviderManager _providerManager;
         private readonly Timer _timer;
         private readonly ILogger<SmartCollectionsManager> _logger;
         private readonly string _pluginDirectory;
 
-        public SmartCollectionsManager(ICollectionManager collectionManager, ILibraryManager libraryManager, ILogger<SmartCollectionsManager> logger, IApplicationPaths applicationPaths)
+        public SmartCollectionsManager(IProviderManager providerManager, ICollectionManager collectionManager, ILibraryManager libraryManager, ILogger<SmartCollectionsManager> logger, IApplicationPaths applicationPaths)
         {
+            _providerManager = providerManager;
             _collectionManager = collectionManager;
             _libraryManager = libraryManager;
             _logger = logger;
@@ -179,6 +182,62 @@ namespace Jellyfin.Plugin.SmartCollections
             return $"{capitalizedTag} Smart Collection";
         }
 
+        private async Task SetPhotoForCollection(BoxSet collection)
+        {
+            try
+            {
+                var query = new InternalItemsQuery
+                {
+                    Recursive = true
+                };
+
+                var items = collection.GetItems(query)
+                    .Items
+                    .Where(item => item is Movie || item is Series)
+                    .ToList();
+
+                _logger.LogDebug("Found {Count} items in collection {CollectionName}",
+                    items.Count, collection.Name);
+
+                var firstItemWithImage = items
+                    .FirstOrDefault(item =>
+                        item.ImageInfos != null &&
+                        item.ImageInfos.Any(i => i.Type == ImageType.Primary));
+
+                if (firstItemWithImage != null)
+                {
+                    var imageInfo = firstItemWithImage.ImageInfos
+                        .First(i => i.Type == ImageType.Primary);
+
+                    // Simply set the image path directly
+                    collection.SetImage(new ItemImageInfo
+                    {
+                        Path = imageInfo.Path,
+                        Type = ImageType.Primary
+                    }, 0);
+
+                    await _libraryManager.UpdateItemAsync(
+                        collection,
+                        collection.GetParent(),
+                        ItemUpdateType.ImageUpdate,
+                        CancellationToken.None);
+                    _logger.LogInformation("Successfully set image for collection {CollectionName} from {ItemName}",
+                        collection.Name, firstItemWithImage.Name);
+                }
+                else
+                {
+                    _logger.LogWarning("No items with images found in collection {CollectionName}. Items: {Items}",
+                        collection.Name,
+                        string.Join(", ", items.Select(i => i.Name)));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error setting image for collection {CollectionName}",
+                    collection.Name);
+            }
+        }
+
         private async Task ExecuteSmartCollectionsForTag(string tag)
         {
             _logger.LogInformation($"Performing ExecuteSmartCollections for tag {tag}");
@@ -205,6 +264,7 @@ namespace Jellyfin.Plugin.SmartCollections
 
             await RemoveUnwantedMediaItems(collection, mediaItems);
             await AddWantedMediaItems(collection, mediaItems);
+            await SetPhotoForCollection(collection);
         }
 
         private void OnTimerElapsed()
