@@ -179,6 +179,45 @@ namespace Jellyfin.Plugin.SmartCollections
             return $"{capitalizedTag} Smart Collection";
         }
 
+        private async Task SetPhotoForCollection(BoxSet collection)
+        {
+            try
+            {
+                // Get the first item in the collection that has an image
+                var firstItemWithImage = collection.GetItems(new InternalItemsQuery())
+                    .Items
+                    .FirstOrDefault(item => item.HasImage(ImageType.Primary));
+
+                if (firstItemWithImage != null)
+                {
+                    // Get the image path of the first item
+                    var imageTag = firstItemWithImage.GetImageInfo(ImageType.Primary, 0);
+                    if (imageTag != null)
+                    {
+                        // Copy the image to the collection
+                        collection.SetImage(new ItemImageInfo
+                        {
+                            Path = imageTag.Path,
+                            Type = ImageType.Primary
+                        }, 0);
+
+                        _logger.LogInformation("Set collection image for {CollectionName} from {ItemName}",
+                            collection.Name, firstItemWithImage.Name);
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("No items with images found in collection {CollectionName}",
+                        collection.Name);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error setting image for collection {CollectionName}",
+                    collection.Name);
+            }
+        }
+
         private async Task ExecuteSmartCollectionsForTag(string tag)
         {
             _logger.LogInformation($"Performing ExecuteSmartCollections for tag {tag}");
@@ -205,6 +244,7 @@ namespace Jellyfin.Plugin.SmartCollections
 
             await RemoveUnwantedMediaItems(collection, mediaItems);
             await AddWantedMediaItems(collection, mediaItems);
+            await SetPhotoForCollection(collection);
         }
 
         private void OnTimerElapsed()
