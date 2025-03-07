@@ -1,4 +1,4 @@
-export VERSION := 0.0.0.1
+export VERSION := 0.0.0.2
 export GITHUB_REPO := johnpc/jellyfin-plugin-smart-collections
 export FILE := smart-collections-${VERSION}.zip
 

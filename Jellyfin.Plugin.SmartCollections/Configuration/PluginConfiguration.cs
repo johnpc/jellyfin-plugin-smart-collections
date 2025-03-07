@@ -9,7 +9,17 @@ namespace Jellyfin.Plugin.SmartCollections.Configuration
                 Tags = new[]
                 {
                     "christmas",
-                    "halloween"
+                    "halloween",
+                    "japan",
+                    "based on novel or book",
+                    "revenge",
+                    "parody",
+                    "based on comic",
+                    "adult animation",
+                    "heist",
+                    "post-apocalyptic future",
+                    "reality",
+                    "mystery"
                 };
             }
 
