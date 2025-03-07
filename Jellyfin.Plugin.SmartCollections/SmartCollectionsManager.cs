@@ -44,52 +44,120 @@ namespace Jellyfin.Plugin.SmartCollections
             Directory.CreateDirectory(_pluginDirectory);
         }
 
-        private IEnumerable<Series> GetSeriesFromLibrary(string term)
+        private IEnumerable<Series> GetSeriesFromLibrary(string term, Person? specificPerson = null)
         {
-            var byTags = _libraryManager.GetItemList(new InternalItemsQuery
+            IEnumerable<Series> results = Enumerable.Empty<Series>();
+            
+            if (specificPerson == null)
             {
-                IncludeItemTypes = new[] { BaseItemKind.Series },
-                IsVirtualItem = false,
-                Recursive = true,
-                HasTvdbId = true,
-                Tags = [term]
-            }).Select(m => m as Series);
+                // When no specific person is provided, search by tags and genres
+                var byTags = _libraryManager.GetItemList(new InternalItemsQuery
+                {
+                    IncludeItemTypes = new[] { BaseItemKind.Series },
+                    IsVirtualItem = false,
+                    Recursive = true,
+                    HasTvdbId = true,
+                    Tags = [term]
+                }).Select(m => m as Series);
 
-            var byGenres = _libraryManager.GetItemList(new InternalItemsQuery
+                var byGenres = _libraryManager.GetItemList(new InternalItemsQuery
+                {
+                    IncludeItemTypes = new[] { BaseItemKind.Series },
+                    IsVirtualItem = false,
+                    Recursive = true,
+                    HasTvdbId = true,
+                    Genres = [term]
+                }).Select(m => m as Series);
+                
+                results = byTags.Union(byGenres);
+            }
+            else
             {
-                IncludeItemTypes = new[] { BaseItemKind.Series },
-                IsVirtualItem = false,
-                Recursive = true,
-                HasTvdbId = true,
-                Genres = [term]
-            }).Select(m => m as Series);
+                // When a specific person is provided, search by actor and director
+                var personName = specificPerson.Name;
+                
+                var byActors = _libraryManager.GetItemList(new InternalItemsQuery
+                {
+                    IncludeItemTypes = new[] { BaseItemKind.Series },
+                    IsVirtualItem = false,
+                    Recursive = true,
+                    HasTvdbId = true,
+                    Person = personName,
+                    PersonTypes = new[] { "Actor" }
+                }).Select(m => m as Series);
 
-            // Combine results and remove duplicates
-            return byTags.Union(byGenres);
+                var byDirectors = _libraryManager.GetItemList(new InternalItemsQuery
+                {
+                    IncludeItemTypes = new[] { BaseItemKind.Series },
+                    IsVirtualItem = false,
+                    Recursive = true,
+                    HasTvdbId = true,
+                    Person = personName,
+                    PersonTypes = new[] { "Director" }
+                }).Select(m => m as Series);
+                
+                results = byActors.Union(byDirectors);
+            }
+
+            return results;
         }
 
-        private IEnumerable<Movie> GetMoviesFromLibrary(string term)
+        private IEnumerable<Movie> GetMoviesFromLibrary(string term, Person? specificPerson = null)
         {
-            var byTags = _libraryManager.GetItemList(new InternalItemsQuery
+            IEnumerable<Movie> results = Enumerable.Empty<Movie>();
+            
+            if (specificPerson == null)
             {
-                IncludeItemTypes = new[] { BaseItemKind.Movie },
-                IsVirtualItem = false,
-                Recursive = true,
-                HasTvdbId = false,
-                Tags = [term]
-            }).Select(m => m as Movie);
+                // When no specific person is provided, search by tags and genres
+                var byTags = _libraryManager.GetItemList(new InternalItemsQuery
+                {
+                    IncludeItemTypes = new[] { BaseItemKind.Movie },
+                    IsVirtualItem = false,
+                    Recursive = true,
+                    HasTvdbId = false,
+                    Tags = [term]
+                }).Select(m => m as Movie);
 
-            var byGenres = _libraryManager.GetItemList(new InternalItemsQuery
+                var byGenres = _libraryManager.GetItemList(new InternalItemsQuery
+                {
+                    IncludeItemTypes = new[] { BaseItemKind.Movie },
+                    IsVirtualItem = false,
+                    Recursive = true,
+                    HasTvdbId = false,
+                    Genres = [term]
+                }).Select(m => m as Movie);
+                
+                results = byTags.Union(byGenres);
+            }
+            else
             {
-                IncludeItemTypes = new[] { BaseItemKind.Movie },
-                IsVirtualItem = false,
-                Recursive = true,
-                HasTvdbId = false,
-                Genres = [term]
-            }).Select(m => m as Movie);
+                // When a specific person is provided, search by actor and director
+                var personName = specificPerson.Name;
+                
+                var byActors = _libraryManager.GetItemList(new InternalItemsQuery
+                {
+                    IncludeItemTypes = new[] { BaseItemKind.Movie },
+                    IsVirtualItem = false,
+                    Recursive = true,
+                    HasTvdbId = false,
+                    Person = personName,
+                    PersonTypes = new[] { "Actor" }
+                }).Select(m => m as Movie);
 
-            // Combine results and remove duplicates
-            return byTags.Union(byGenres);
+                var byDirectors = _libraryManager.GetItemList(new InternalItemsQuery
+                {
+                    IncludeItemTypes = new[] { BaseItemKind.Movie },
+                    IsVirtualItem = false,
+                    Recursive = true,
+                    HasTvdbId = false,
+                    Person = personName,
+                    PersonTypes = new[] { "Director" }
+                }).Select(m => m as Movie);
+                
+                results = byActors.Union(byDirectors);
+            }
+
+            return results;
         }
 
         private async Task RemoveUnwantedMediaItems(BoxSet collection, IEnumerable<BaseItem> wantedMediaItems)
@@ -182,10 +250,40 @@ namespace Jellyfin.Plugin.SmartCollections
             return $"{capitalizedTag} Smart Collection";
         }
 
-        private async Task SetPhotoForCollection(BoxSet collection)
+        private async Task SetPhotoForCollection(BoxSet collection, Person? specificPerson = null)
         {
             try
             {
+                // First attempt: Use the specific person if provided
+                if (specificPerson != null && specificPerson.ImageInfos != null)
+                {
+                    var personImageInfo = specificPerson.ImageInfos
+                        .FirstOrDefault(i => i.Type == ImageType.Primary);
+
+                    if (personImageInfo != null)
+                    {
+                        // Set the image path directly
+                        collection.SetImage(new ItemImageInfo
+                        {
+                            Path = personImageInfo.Path,
+                            Type = ImageType.Primary
+                        }, 0);
+
+                        await _libraryManager.UpdateItemAsync(
+                            collection,
+                            collection.GetParent(),
+                            ItemUpdateType.ImageUpdate,
+                            CancellationToken.None);
+                        _logger.LogInformation("Successfully set image for collection {CollectionName} from specified person {PersonName}",
+                            collection.Name, specificPerson.Name);
+
+                        return; // We're done if we used the specified person's image
+                    }
+                }
+
+                // Second attempt: Try to determine the collection type and set appropriate image
+
+                // Get the collection's items to determine its nature
                 var query = new InternalItemsQuery
                 {
                     Recursive = true
@@ -193,23 +291,71 @@ namespace Jellyfin.Plugin.SmartCollections
 
                 var items = collection.GetItems(query)
                     .Items
-                    .Where(item => item is Movie || item is Series)
                     .ToList();
 
                 _logger.LogDebug("Found {Count} items in collection {CollectionName}",
                     items.Count, collection.Name);
 
-                var firstItemWithImage = items
+                // If no specific person was provided, but collection name suggests it's for a person,
+                // try to find that person
+                if (specificPerson == null)
+                {
+                    string term = collection.Name;
+
+                    // Check if this collection might be for a person (actor or director)
+                    var personQuery = new InternalItemsQuery
+                    {
+                        IncludeItemTypes = new[] { BaseItemKind.Person },
+                        Name = term
+                    };
+
+                    var person = _libraryManager.GetItemList(personQuery)
+                        .FirstOrDefault(p =>
+                            p.Name.Equals(term, StringComparison.OrdinalIgnoreCase) &&
+                            p.ImageInfos != null &&
+                            p.ImageInfos.Any(i => i.Type == ImageType.Primary)) as Person;
+
+                    // If we found a person with an image, use their image
+                    if (person != null && person.ImageInfos != null)
+                    {
+                        var personImageInfo = person.ImageInfos
+                            .FirstOrDefault(i => i.Type == ImageType.Primary);
+
+                        if (personImageInfo != null)
+                        {
+                            // Set the image path directly
+                            collection.SetImage(new ItemImageInfo
+                            {
+                                Path = personImageInfo.Path,
+                                Type = ImageType.Primary
+                            }, 0);
+
+                            await _libraryManager.UpdateItemAsync(
+                                collection,
+                                collection.GetParent(),
+                                ItemUpdateType.ImageUpdate,
+                                CancellationToken.None);
+                            _logger.LogInformation("Successfully set image for collection {CollectionName} from detected person {PersonName}",
+                                collection.Name, person.Name);
+
+                            return; // We're done if we found a person image
+                        }
+                    }
+                }
+
+                // Last fallback: Use an image from a movie/series in the collection
+                var mediaItemWithImage = items
+                    .Where(item => item is Movie || item is Series)
                     .FirstOrDefault(item =>
                         item.ImageInfos != null &&
                         item.ImageInfos.Any(i => i.Type == ImageType.Primary));
 
-                if (firstItemWithImage != null)
+                if (mediaItemWithImage != null)
                 {
-                    var imageInfo = firstItemWithImage.ImageInfos
+                    var imageInfo = mediaItemWithImage.ImageInfos
                         .First(i => i.Type == ImageType.Primary);
 
-                    // Simply set the image path directly
+                    // Set the image path directly
                     collection.SetImage(new ItemImageInfo
                     {
                         Path = imageInfo.Path,
@@ -222,7 +368,7 @@ namespace Jellyfin.Plugin.SmartCollections
                         ItemUpdateType.ImageUpdate,
                         CancellationToken.None);
                     _logger.LogInformation("Successfully set image for collection {CollectionName} from {ItemName}",
-                        collection.Name, firstItemWithImage.Name);
+                        collection.Name, mediaItemWithImage.Name);
                 }
                 else
                 {
@@ -255,8 +401,28 @@ namespace Jellyfin.Plugin.SmartCollections
             }
             collection.DisplayOrder = "Default";
 
-            var movies = GetMoviesFromLibrary(tag).ToList();
-            var series = GetSeriesFromLibrary(tag).ToList();
+            // Check if this tag might correspond to a person
+            Person? specificPerson = null;
+            var personQuery = new InternalItemsQuery
+            {
+                IncludeItemTypes = new[] { BaseItemKind.Person },
+                Name = tag
+            };
+
+            specificPerson = _libraryManager.GetItemList(personQuery)
+                .FirstOrDefault(p =>
+                    p.Name.Equals(tag, StringComparison.OrdinalIgnoreCase) &&
+                    p.ImageInfos != null &&
+                    p.ImageInfos.Any(i => i.Type == ImageType.Primary)) as Person;
+
+            if (specificPerson != null)
+            {
+                _logger.LogInformation("Found specific person {PersonName} matching tag {Tag}",
+                    specificPerson.Name, tag);
+            }
+
+            var movies = GetMoviesFromLibrary(tag, specificPerson).ToList();
+            var series = GetSeriesFromLibrary(tag, specificPerson).ToList();
             _logger.LogInformation($"Found {movies.Count} movies and {series.Count} series in library");
             var mediaItems = movies.Cast<BaseItem>().Concat(series.Cast<BaseItem>())
                 .ToList();
@@ -264,7 +430,7 @@ namespace Jellyfin.Plugin.SmartCollections
 
             await RemoveUnwantedMediaItems(collection, mediaItems);
             await AddWantedMediaItems(collection, mediaItems);
-            await SetPhotoForCollection(collection);
+            await SetPhotoForCollection(collection, specificPerson);
         }
 
         private void OnTimerElapsed()
