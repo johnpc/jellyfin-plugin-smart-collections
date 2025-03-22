@@ -2,6 +2,30 @@
 <html>
   <head>
     <title>Smart Collections</title>
+    <style>
+      .tag-title-container {
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+      }
+      .tag-input {
+        flex: 1;
+        margin-right: 10px;
+      }
+      .title-input {
+        flex: 1;
+      }
+      .add-tag-button {
+        margin-bottom: 15px;
+      }
+      .remove-tag-button {
+        margin-left: 10px;
+        min-width: 40px;
+      }
+      #tag-title-pairs {
+        margin-bottom: 20px;
+      }
+    </style>
   </head>
 
   <body>
@@ -24,14 +48,20 @@
               >
             </div>
             <div class="verticalSection">
-              <input
-                is="emby-input"
-                id="csv-input"
-                type="text"
-                data-id="txtTagCsv"
-                required="required"
-                label="Comma separated tags:"
-              />
+              <div class="inputContainer">
+                <label class="inputLabel inputLabelUnfocused" for="tag-title-pairs">Tags and Collection Titles:</label>
+                <div id="tag-title-pairs"></div>
+              </div>
+              
+              <button
+                id="add-tag-button"
+                is="emby-button"
+                type="button"
+                class="raised add-tag-button"
+              >
+                <span>Add Tag</span>
+              </button>
+              
               <br />
               <button
                 id="saveConfiguration"
@@ -56,23 +86,103 @@
       </div>
 
       <script type="text/javascript" defer>
+        function createTagTitlePairElement(tag = '', title = '') {
+          const container = document.createElement('div');
+          container.className = 'tag-title-container';
+          
+          const tagInput = document.createElement('input');
+          tagInput.is = 'emby-input';
+          tagInput.type = 'text';
+          tagInput.className = 'tag-input';
+          tagInput.placeholder = 'Tag';
+          tagInput.value = tag;
+          
+          const titleInput = document.createElement('input');
+          titleInput.is = 'emby-input';
+          titleInput.type = 'text';
+          titleInput.className = 'title-input';
+          titleInput.placeholder = 'Collection Title (optional)';
+          titleInput.value = title;
+          
+          const removeButton = document.createElement('button');
+          removeButton.is = 'emby-button';
+          removeButton.type = 'button';
+          removeButton.className = 'raised remove-tag-button';
+          removeButton.innerHTML = '<span>X</span>';
+          removeButton.onclick = function() {
+            container.remove();
+          };
+          
+          container.appendChild(tagInput);
+          container.appendChild(titleInput);
+          container.appendChild(removeButton);
+          
+          return container;
+        }
+        
         function loadConfig() {
           window.ApiClient.getPluginConfiguration(
             "09612e52-0f93-41ab-a6ab-5a19479f5315",
           ) // Plugin Id
             .then(function (config) {
-              document.querySelector("#csv-input").value =
-                config.Tags.join(",");
+              const tagTitlePairsContainer = document.querySelector("#tag-title-pairs");
+              tagTitlePairsContainer.innerHTML = '';
+              
+              // Check if we have the new TagTitlePairs property
+              if (config.TagTitlePairs && config.TagTitlePairs.length > 0) {
+                config.TagTitlePairs.forEach(pair => {
+                  const element = createTagTitlePairElement(pair.Tag, pair.Title);
+                  tagTitlePairsContainer.appendChild(element);
+                });
+              } 
+              // Fallback to old Tags array for backward compatibility
+              else if (config.Tags && config.Tags.length > 0) {
+                config.Tags.forEach(tag => {
+                  const element = createTagTitlePairElement(tag, '');
+                  tagTitlePairsContainer.appendChild(element);
+                });
+              }
+              // If no configuration exists yet, add one empty row
+              else {
+                const element = createTagTitlePairElement();
+                tagTitlePairsContainer.appendChild(element);
+              }
             })
             .catch(function (error) {
               console.error(error);
+              // Add an empty row if there's an error
+              const element = createTagTitlePairElement();
+              document.querySelector("#tag-title-pairs").appendChild(element);
             });
         }
+        
         function saveConfig() {
-          var csv = document.querySelector("#csv-input").value;
-          var config = {
-            Tags: csv.split(",").map((s) => s.trim()),
+          const tagTitleContainers = document.querySelectorAll('.tag-title-container');
+          const tagTitlePairs = [];
+          const tags = [];
+          
+          tagTitleContainers.forEach(container => {
+            const tagInput = container.querySelector('.tag-input');
+            const titleInput = container.querySelector('.title-input');
+            
+            if (tagInput.value.trim()) {
+              const tag = tagInput.value.trim();
+              const title = titleInput.value.trim();
+              
+              tagTitlePairs.push({
+                Tag: tag,
+                Title: title || null // Use null if title is empty
+              });
+              
+              tags.push(tag); // For backward compatibility
+            }
+          });
+          
+          const config = {
+            TagTitlePairs: tagTitlePairs,
+            Tags: tags
           };
+          
           window.ApiClient.updatePluginConfiguration(
             "09612e52-0f93-41ab-a6ab-5a19479f5315",
             config,
@@ -80,8 +190,10 @@
             .then(() => alert("Update success"))
             .catch(function (error) {
               console.error(error);
+              alert("Error saving configuration");
             });
         }
+        
         function execute() {
           var request = {
             url: ApiClient.getUrl("/SmartCollections/SmartCollections"),
@@ -99,9 +211,15 @@
             });
         }
 
+        // Initialize the page
         loadConfig();
-        const element = document.querySelector("#saveConfiguration");
-        element.addEventListener("click", saveConfig);
+        
+        // Add event listeners
+        document.querySelector("#saveConfiguration").addEventListener("click", saveConfig);
+        document.querySelector("#add-tag-button").addEventListener("click", function() {
+          const element = createTagTitlePairElement();
+          document.querySelector("#tag-title-pairs").appendChild(element);
+        });
       </script>
     </div>
   </body>
