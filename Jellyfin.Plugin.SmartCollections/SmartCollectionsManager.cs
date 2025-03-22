@@ -213,8 +213,9 @@ namespace Jellyfin.Plugin.SmartCollections
         public async Task ExecuteSmartCollectionsNoProgress()
         {
             _logger.LogInformation("Performing ExecuteSmartCollections");
-            // Define the list of tags to create smart collections for
-            var tags = Plugin.Instance!.Configuration.Tags;
+            // Get tags from the TagTitlePairs
+            var tagTitlePairs = Plugin.Instance!.Configuration.TagTitlePairs;
+            var tags = tagTitlePairs.Select(pair => pair.Tag).ToArray();
 
             _logger.LogInformation($"Starting execution of smart collections for {tags.Length} tags");
 
@@ -243,6 +244,17 @@ namespace Jellyfin.Plugin.SmartCollections
 
         private string GetCollectionName(string tag)
         {
+            // Look for a custom title in the configuration
+            var tagTitlePair = Plugin.Instance!.Configuration.TagTitlePairs
+                .FirstOrDefault(pair => pair.Tag.Equals(tag, StringComparison.OrdinalIgnoreCase));
+            
+            // If a custom title is set, use it
+            if (tagTitlePair != null && !string.IsNullOrWhiteSpace(tagTitlePair.Title))
+            {
+                return tagTitlePair.Title;
+            }
+            
+            // Otherwise use the default format
             string capitalizedTag = tag.Length > 0
                 ? char.ToUpper(tag[0]) + tag[1..]
                 : tag;

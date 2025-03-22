@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Jellyfin.Plugin.SmartCollections.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Controller;
@@ -32,6 +33,24 @@ namespace Jellyfin.Plugin.SmartCollections
                 libraryManager,
                 loggerFactory.CreateLogger<SmartCollectionsManager>(),
                 appPaths);
+                
+            // Ensure backward compatibility when loading configuration
+            EnsureBackwardCompatibility();
+        }
+        
+        private void EnsureBackwardCompatibility()
+        {
+            // If we have Tags but no TagTitlePairs, convert Tags to TagTitlePairs
+            if ((Configuration.TagTitlePairs == null || Configuration.TagTitlePairs.Count == 0) && 
+                Configuration.Tags != null && Configuration.Tags.Length > 0)
+            {
+                Configuration.TagTitlePairs = Configuration.Tags
+                    .Select(tag => new TagTitlePair(tag))
+                    .ToList();
+                    
+                // Save the updated configuration
+                SaveConfiguration();
+            }
         }
 
         public override string Name => "Smart Collections";
@@ -39,7 +58,7 @@ namespace Jellyfin.Plugin.SmartCollections
         public static Plugin Instance { get; private set; }
 
         public override string Description
-            => "Enables creation of Smart Collections based on Tag";
+            => "Enables creation of Smart Collections based on Tag with custom titles";
 
         private readonly Guid _id = new Guid("09612e52-0f93-41ab-a6ab-5a19479f5315");
         public override Guid Id => _id;
