@@ -16,6 +16,7 @@ namespace Jellyfin.Plugin.SmartCollections
     public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     {
         private readonly SmartCollectionsManager _syncSmartCollectionsManager;
+        private static readonly string ConfigInitializedKey = "ConfigInitialized";
 
         public Plugin(
             IServerApplicationPaths appPaths,
@@ -34,6 +35,50 @@ namespace Jellyfin.Plugin.SmartCollections
                 loggerFactory.CreateLogger<SmartCollectionsManager>(),
                 appPaths);
                 
+            // Initialize configuration with defaults only on first run
+            InitializeConfigurationIfNeeded();
+        }
+        
+        private void InitializeConfigurationIfNeeded()
+        {
+            // Check if this is the first time the plugin is being loaded
+            bool isInitialized = false;
+            if (Configuration.TagTitlePairs != null && Configuration.TagTitlePairs.Count > 0)
+            {
+                isInitialized = true;
+            }
+            else if (Configuration.Tags != null && Configuration.Tags.Length > 0)
+            {
+                isInitialized = true;
+            }
+            
+            // Only add default collections if this is the first time loading
+            if (!isInitialized)
+            {
+                // Add default collections for first-time users
+                Configuration.TagTitlePairs = new List<TagTitlePair>
+                {
+                    new TagTitlePair("christmas"),
+                    new TagTitlePair("halloween"),
+                    new TagTitlePair("japan"),
+                    new TagTitlePair("based on novel or book"),
+                    new TagTitlePair("revenge"),
+                    new TagTitlePair("parody"),
+                    new TagTitlePair("based on comic"),
+                    new TagTitlePair("adult animation"),
+                    new TagTitlePair("heist"),
+                    new TagTitlePair("post-apocalyptic future"),
+                    new TagTitlePair("reality"),
+                    new TagTitlePair("mystery")
+                };
+                
+                // For backward compatibility
+                Configuration.Tags = Configuration.TagTitlePairs.ConvertAll(pair => pair.Tag).ToArray();
+                
+                // Save the configuration with defaults
+                SaveConfiguration();
+            }
+            
             // Ensure backward compatibility when loading configuration
             EnsureBackwardCompatibility();
         }

@@ -1,5 +1,6 @@
 ﻿using MediaBrowser.Model.Plugins;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Jellyfin.Plugin.SmartCollections.Configuration
 {
@@ -31,31 +32,16 @@ namespace Jellyfin.Plugin.SmartCollections.Configuration
 
     public class PluginConfiguration : BasePluginConfiguration
     {
-            public PluginConfiguration()
-            {
-                TagTitlePairs = new List<TagTitlePair>
-                {
-                    new TagTitlePair("christmas"),
-                    new TagTitlePair("halloween"),
-                    new TagTitlePair("japan"),
-                    new TagTitlePair("based on novel or book"),
-                    new TagTitlePair("revenge"),
-                    new TagTitlePair("parody"),
-                    new TagTitlePair("based on comic"),
-                    new TagTitlePair("adult animation"),
-                    new TagTitlePair("heist"),
-                    new TagTitlePair("post-apocalyptic future"),
-                    new TagTitlePair("reality"),
-                    new TagTitlePair("mystery")
-                };
-                
-                // For backward compatibility
-                Tags = TagTitlePairs.ConvertAll(pair => pair.Tag).ToArray();
-            }
+        public PluginConfiguration()
+        {
+            // Initialize with empty lists - defaults will be added by Plugin.cs only on first run
+            TagTitlePairs = new List<TagTitlePair>();
+            Tags = new string[0];
+        }
 
-            public List<TagTitlePair> TagTitlePairs { get; set; }
-            
-            // Keep this for backward compatibility
-            public string[] Tags { get; set; }
+        public List<TagTitlePair> TagTitlePairs { get; set; }
+        
+        // Keep this for backward compatibility
+        public string[] Tags { get; set; }
     }
 }
