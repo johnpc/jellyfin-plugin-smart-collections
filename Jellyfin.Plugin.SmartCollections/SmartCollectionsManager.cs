@@ -18,12 +18,11 @@ using Jellyfin.Data.Enums;
 using Jellyfin.Data.Entities;
 using MediaBrowser.Controller.Collections;
 using MediaBrowser.Controller.Providers;
+using Jellyfin.Plugin.SmartCollections.Configuration;
 
 namespace Jellyfin.Plugin.SmartCollections
 
 {
-
-
     public class SmartCollectionsManager : IDisposable
     {
         private readonly ICollectionManager _collectionManager;
@@ -213,23 +212,22 @@ namespace Jellyfin.Plugin.SmartCollections
         public async Task ExecuteSmartCollectionsNoProgress()
         {
             _logger.LogInformation("Performing ExecuteSmartCollections");
-            // Get tags from the TagTitlePairs
+            // Get tag-title pairs from configuration
             var tagTitlePairs = Plugin.Instance!.Configuration.TagTitlePairs;
-            var tags = tagTitlePairs.Select(pair => pair.Tag).ToArray();
 
-            _logger.LogInformation($"Starting execution of smart collections for {tags.Length} tags");
+            _logger.LogInformation($"Starting execution of smart collections for {tagTitlePairs.Count} tag-title pairs");
 
-            foreach (var tag in tags)
+            foreach (var tagTitlePair in tagTitlePairs)
             {
                 try
                 {
-                    _logger.LogInformation($"Processing smart collection for tag: {tag}");
-                    await ExecuteSmartCollectionsForTag(tag);
+                    _logger.LogInformation($"Processing smart collection for tag: {tagTitlePair.Tag}");
+                    await ExecuteSmartCollectionsForTagTitlePair(tagTitlePair);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, $"Error processing smart collection for tag: {tag}");
-                    // Continue with next tag even if one fails
+                    _logger.LogError(ex, $"Error processing smart collection for tag: {tagTitlePair.Tag}");
+                    // Continue with next tag-title pair even if one fails
                     continue;
                 }
             }
@@ -242,22 +240,23 @@ namespace Jellyfin.Plugin.SmartCollections
             await ExecuteSmartCollectionsNoProgress();
         }
 
-        private string GetCollectionName(string tag)
+        private string GetCollectionName(TagTitlePair tagTitlePair)
         {
-            // Look for a custom title in the configuration
-            var tagTitlePair = Plugin.Instance!.Configuration.TagTitlePairs
-                .FirstOrDefault(pair => pair.Tag.Equals(tag, StringComparison.OrdinalIgnoreCase));
-            
             // If a custom title is set, use it
-            if (tagTitlePair != null && !string.IsNullOrWhiteSpace(tagTitlePair.Title))
+            if (!string.IsNullOrWhiteSpace(tagTitlePair.Title))
             {
                 return tagTitlePair.Title;
             }
             
-            // Otherwise use the default format
-            string capitalizedTag = tag.Length > 0
-                ? char.ToUpper(tag[0]) + tag[1..]
-                : tag;
+            // Otherwise use the default format based on the first tag
+            string[] tags = tagTitlePair.GetTagsArray();
+            if (tags.Length == 0)
+                return "Smart Collection";
+                
+            string firstTag = tags[0];
+            string capitalizedTag = firstTag.Length > 0
+                ? char.ToUpper(firstTag[0]) + firstTag[1..]
+                : firstTag;
 
             return $"{capitalizedTag} Smart Collection";
         }
@@ -396,49 +395,82 @@ namespace Jellyfin.Plugin.SmartCollections
             }
         }
 
-        private async Task ExecuteSmartCollectionsForTag(string tag)
+        private async Task ExecuteSmartCollectionsForTagTitlePair(TagTitlePair tagTitlePair)
         {
-            _logger.LogInformation($"Performing ExecuteSmartCollections for tag {tag}");
-            var Name = GetCollectionName(tag);
-            var collection = GetBoxSetByName(Name);
+            _logger.LogInformation($"Performing ExecuteSmartCollections for tag: {tagTitlePair.Tag}");
+            
+            // Get the collection name from the tag-title pair
+            var collectionName = GetCollectionName(tagTitlePair);
+            
+            // Get or create the collection
+            var collection = GetBoxSetByName(collectionName);
             if (collection is null)
             {
-                _logger.LogInformation("{Name} not found, creating.", Name);
+                _logger.LogInformation("{Name} not found, creating.", collectionName);
                 collection = await _collectionManager.CreateCollectionAsync(new CollectionCreationOptions
                 {
-                    Name = Name,
+                    Name = collectionName,
                     IsLocked = true
                 });
                 collection.Tags = new[] { "smartcollection" };
             }
             collection.DisplayOrder = "Default";
 
-            // Check if this tag might correspond to a person
-            Person? specificPerson = null;
-            var personQuery = new InternalItemsQuery
+            // Get all tags from the tag-title pair
+            string[] tags = tagTitlePair.GetTagsArray();
+            if (tags.Length == 0)
             {
-                IncludeItemTypes = new[] { BaseItemKind.Person },
-                Name = tag
-            };
-
-            specificPerson = _libraryManager.GetItemList(personQuery)
-                .FirstOrDefault(p =>
-                    p.Name.Equals(tag, StringComparison.OrdinalIgnoreCase) &&
-                    p.ImageInfos != null &&
-                    p.ImageInfos.Any(i => i.Type == ImageType.Primary)) as Person;
-
-            if (specificPerson != null)
-            {
-                _logger.LogInformation("Found specific person {PersonName} matching tag {Tag}",
-                    specificPerson.Name, tag);
+                _logger.LogWarning("No tags found in tag-title pair for collection {CollectionName}", collectionName);
+                return;
             }
 
-            var movies = GetMoviesFromLibrary(tag, specificPerson).ToList();
-            var series = GetSeriesFromLibrary(tag, specificPerson).ToList();
-            _logger.LogInformation($"Found {movies.Count} movies and {series.Count} series in library");
-            var mediaItems = movies.Cast<BaseItem>().Concat(series.Cast<BaseItem>())
+            // Check if any tag might correspond to a person
+            Person? specificPerson = null;
+            foreach (var tag in tags)
+            {
+                var personQuery = new InternalItemsQuery
+                {
+                    IncludeItemTypes = new[] { BaseItemKind.Person },
+                    Name = tag
+                };
+
+                specificPerson = _libraryManager.GetItemList(personQuery)
+                    .FirstOrDefault(p =>
+                        p.Name.Equals(tag, StringComparison.OrdinalIgnoreCase) &&
+                        p.ImageInfos != null &&
+                        p.ImageInfos.Any(i => i.Type == ImageType.Primary)) as Person;
+                
+                if (specificPerson != null)
+                {
+                    _logger.LogInformation("Found specific person {PersonName} matching tag {Tag}",
+                        specificPerson.Name, tag);
+                    break;
+                }
+            }
+
+            // Collect all media items matching any of the tags
+            var allMovies = new List<Movie>();
+            var allSeries = new List<Series>();
+            
+            foreach (var tag in tags)
+            {
+                var movies = GetMoviesFromLibrary(tag, specificPerson).ToList();
+                var series = GetSeriesFromLibrary(tag, specificPerson).ToList();
+                
+                _logger.LogInformation($"Found {movies.Count} movies and {series.Count} series for tag: {tag}");
+                
+                allMovies.AddRange(movies);
+                allSeries.AddRange(series);
+            }
+            
+            // Remove duplicates
+            allMovies = allMovies.Distinct().ToList();
+            allSeries = allSeries.Distinct().ToList();
+            
+            _logger.LogInformation($"Processing {allMovies.Count} movies and {allSeries.Count} series total for collection: {collectionName}");
+            
+            var mediaItems = allMovies.Cast<BaseItem>().Concat(allSeries.Cast<BaseItem>())
                 .ToList();
-            _logger.LogInformation($"Processing {mediaItems.Count} total media items");
 
             await RemoveUnwantedMediaItems(collection, mediaItems);
             await AddWantedMediaItems(collection, mediaItems);

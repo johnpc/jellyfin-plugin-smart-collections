@@ -24,9 +24,26 @@ namespace Jellyfin.Plugin.SmartCollections.Configuration
 
         private static string GetDefaultTitle(string tag)
         {
-            return tag.Length > 0
-                ? char.ToUpper(tag[0]) + tag[1..] + " Smart Collection"
+            if (string.IsNullOrEmpty(tag))
+                return "Smart Collection";
+                
+            // If there are multiple tags, use the first one for the default title
+            string firstTag = tag.Split(',')[0].Trim();
+            return firstTag.Length > 0
+                ? char.ToUpper(firstTag[0]) + firstTag[1..] + " Smart Collection"
                 : "Smart Collection";
+        }
+        
+        // Helper method to get individual tags as an array
+        public string[] GetTagsArray()
+        {
+            if (string.IsNullOrEmpty(Tag))
+                return new string[0];
+                
+            return Tag.Split(',')
+                .Select(t => t.Trim())
+                .Where(t => !string.IsNullOrEmpty(t))
+                .ToArray();
         }
     }
 
