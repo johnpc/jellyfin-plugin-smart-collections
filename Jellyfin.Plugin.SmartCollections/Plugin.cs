@@ -16,7 +16,6 @@ namespace Jellyfin.Plugin.SmartCollections
     public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     {
         private readonly SmartCollectionsManager _syncSmartCollectionsManager;
-        private static readonly string ConfigInitializedKey = "ConfigInitialized";
 
         public Plugin(
             IServerApplicationPaths appPaths,
@@ -34,11 +33,11 @@ namespace Jellyfin.Plugin.SmartCollections
                 libraryManager,
                 loggerFactory.CreateLogger<SmartCollectionsManager>(),
                 appPaths);
-                
+
             // Initialize configuration with defaults only on first run
             InitializeConfigurationIfNeeded();
         }
-        
+
         private void InitializeConfigurationIfNeeded()
         {
             // Check if this is the first time the plugin is being loaded
@@ -51,7 +50,7 @@ namespace Jellyfin.Plugin.SmartCollections
             {
                 isInitialized = true;
             }
-            
+
             // Only add default collections if this is the first time loading
             if (!isInitialized)
             {
@@ -71,28 +70,28 @@ namespace Jellyfin.Plugin.SmartCollections
                     new TagTitlePair("reality"),
                     new TagTitlePair("mystery")
                 };
-                
+
                 // For backward compatibility
                 Configuration.Tags = Configuration.TagTitlePairs.ConvertAll(pair => pair.Tag).ToArray();
-                
+
                 // Save the configuration with defaults
                 SaveConfiguration();
             }
-            
+
             // Ensure backward compatibility when loading configuration
             EnsureBackwardCompatibility();
         }
-        
+
         private void EnsureBackwardCompatibility()
         {
             // If we have Tags but no TagTitlePairs, convert Tags to TagTitlePairs
-            if ((Configuration.TagTitlePairs == null || Configuration.TagTitlePairs.Count == 0) && 
+            if ((Configuration.TagTitlePairs == null || Configuration.TagTitlePairs.Count == 0) &&
                 Configuration.Tags != null && Configuration.Tags.Length > 0)
             {
                 Configuration.TagTitlePairs = Configuration.Tags
                     .Select(tag => new TagTitlePair(tag))
                     .ToList();
-                    
+
                 // Save the updated configuration
                 SaveConfiguration();
             }
@@ -103,7 +102,7 @@ namespace Jellyfin.Plugin.SmartCollections
         public static Plugin Instance { get; private set; }
 
         public override string Description
-            => "Enables creation of Smart Collections based on Tag with custom titles";
+            => "Enables creation of Smart Collections based on Tags with custom titles";
 
         private readonly Guid _id = new Guid("09612e52-0f93-41ab-a6ab-5a19479f5315");
         public override Guid Id => _id;

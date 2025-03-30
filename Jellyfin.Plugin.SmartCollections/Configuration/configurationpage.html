@@ -25,6 +25,12 @@
       #tag-title-pairs {
         margin-bottom: 20px;
       }
+      .help-text {
+        font-size: 0.9em;
+        color: #888;
+        margin-top: 5px;
+        margin-bottom: 15px;
+      }
     </style>
   </head>
 
@@ -50,6 +56,7 @@
             <div class="verticalSection">
               <div class="inputContainer">
                 <label class="inputLabel inputLabelUnfocused" for="tag-title-pairs">Tags and Collection Titles:</label>
+                <div class="help-text">For each collection, you can specify multiple tags separated by commas (e.g., "christmas, holiday, winter")</div>
                 <div id="tag-title-pairs"></div>
               </div>
               
@@ -59,7 +66,7 @@
                 type="button"
                 class="raised add-tag-button"
               >
-                <span>Add Tag</span>
+                <span>Add Collection</span>
               </button>
               
               <br />
@@ -94,7 +101,7 @@
           tagInput.is = 'emby-input';
           tagInput.type = 'text';
           tagInput.className = 'tag-input';
-          tagInput.placeholder = 'Tag';
+          tagInput.placeholder = 'Tags (comma separated)';
           tagInput.value = tag;
           
           const titleInput = document.createElement('input');
@@ -128,7 +135,7 @@
               const tagTitlePairsContainer = document.querySelector("#tag-title-pairs");
               tagTitlePairsContainer.innerHTML = '';
               
-              // Check if we have the new TagTitlePairs property
+              // Check if we have the TagTitlePairs property
               if (config.TagTitlePairs && config.TagTitlePairs.length > 0) {
                 config.TagTitlePairs.forEach(pair => {
                   const element = createTagTitlePairElement(pair.Tag, pair.Title);
