@@ -100,6 +100,24 @@ namespace Jellyfin.Plugin.SmartCollections
 
             return results;
         }
+        
+        private IEnumerable<Series> GetSeriesFromLibraryWithAndMatching(string[] terms, Person? specificPerson = null)
+        {
+            if (terms.Length == 0)
+                return Enumerable.Empty<Series>();
+                
+            // Start with all series matching the first tag
+            var results = GetSeriesFromLibrary(terms[0], specificPerson).ToList();
+            
+            // For each additional tag, filter the results to only include series that also match that tag
+            for (int i = 1; i < terms.Length && results.Any(); i++)
+            {
+                var matchingItems = GetSeriesFromLibrary(terms[i], specificPerson).ToList();
+                results = results.Where(item => matchingItems.Any(m => m.Id == item.Id)).ToList();
+            }
+            
+            return results;
+        }
 
         private IEnumerable<Movie> GetMoviesFromLibrary(string term, Person? specificPerson = null)
         {
@@ -156,6 +174,24 @@ namespace Jellyfin.Plugin.SmartCollections
                 results = byActors.Union(byDirectors);
             }
 
+            return results;
+        }
+        
+        private IEnumerable<Movie> GetMoviesFromLibraryWithAndMatching(string[] terms, Person? specificPerson = null)
+        {
+            if (terms.Length == 0)
+                return Enumerable.Empty<Movie>();
+                
+            // Start with all movies matching the first tag
+            var results = GetMoviesFromLibrary(terms[0], specificPerson).ToList();
+            
+            // For each additional tag, filter the results to only include movies that also match that tag
+            for (int i = 1; i < terms.Length && results.Any(); i++)
+            {
+                var matchingItems = GetMoviesFromLibrary(terms[i], specificPerson).ToList();
+                results = results.Where(item => matchingItems.Any(m => m.Id == item.Id)).ToList();
+            }
+            
             return results;
         }
 
@@ -257,6 +293,12 @@ namespace Jellyfin.Plugin.SmartCollections
             string capitalizedTag = firstTag.Length > 0
                 ? char.ToUpper(firstTag[0]) + firstTag[1..]
                 : firstTag;
+
+            // For AND matching, use a different format to indicate the intersection
+            if (tagTitlePair.MatchingMode == TagMatchingMode.And && tags.Length > 1)
+            {
+                return $"{capitalizedTag} + {tags.Length - 1} more tags";
+            }
 
             return $"{capitalizedTag} Smart Collection";
         }
@@ -448,24 +490,36 @@ namespace Jellyfin.Plugin.SmartCollections
                 }
             }
 
-            // Collect all media items matching any of the tags
+            // Collect all media items based on the matching mode
             var allMovies = new List<Movie>();
             var allSeries = new List<Series>();
             
-            foreach (var tag in tags)
+            if (tagTitlePair.MatchingMode == TagMatchingMode.And)
             {
-                var movies = GetMoviesFromLibrary(tag, specificPerson).ToList();
-                var series = GetSeriesFromLibrary(tag, specificPerson).ToList();
-                
-                _logger.LogInformation($"Found {movies.Count} movies and {series.Count} series for tag: {tag}");
-                
-                allMovies.AddRange(movies);
-                allSeries.AddRange(series);
+                // AND matching - items must match all tags
+                _logger.LogInformation("Using AND matching mode for tags: {Tags}", string.Join(", ", tags));
+                allMovies = GetMoviesFromLibraryWithAndMatching(tags, specificPerson).ToList();
+                allSeries = GetSeriesFromLibraryWithAndMatching(tags, specificPerson).ToList();
             }
-            
-            // Remove duplicates
-            allMovies = allMovies.Distinct().ToList();
-            allSeries = allSeries.Distinct().ToList();
+            else
+            {
+                // OR matching (default) - items can match any tag
+                _logger.LogInformation("Using OR matching mode for tags: {Tags}", string.Join(", ", tags));
+                foreach (var tag in tags)
+                {
+                    var movies = GetMoviesFromLibrary(tag, specificPerson).ToList();
+                    var series = GetSeriesFromLibrary(tag, specificPerson).ToList();
+                    
+                    _logger.LogInformation($"Found {movies.Count} movies and {series.Count} series for tag: {tag}");
+                    
+                    allMovies.AddRange(movies);
+                    allSeries.AddRange(series);
+                }
+                
+                // Remove duplicates
+                allMovies = allMovies.Distinct().ToList();
+                allSeries = allSeries.Distinct().ToList();
+            }
             
             _logger.LogInformation($"Processing {allMovies.Count} movies and {allSeries.Count} series total for collection: {collectionName}");
             

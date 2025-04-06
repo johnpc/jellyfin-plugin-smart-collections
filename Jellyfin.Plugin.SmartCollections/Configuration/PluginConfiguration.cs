@@ -4,22 +4,31 @@ using System.Linq;
 
 namespace Jellyfin.Plugin.SmartCollections.Configuration
 {
+    public enum TagMatchingMode
+    {
+        Or = 0,  // Default - match any tag (backward compatible)
+        And = 1  // Match all tags
+    }
+
     public class TagTitlePair
     {
         public string Tag { get; set; }
         public string Title { get; set; }
+        public TagMatchingMode MatchingMode { get; set; }
 
         // Add parameterless constructor for XML serialization
         public TagTitlePair()
         {
             Tag = string.Empty;
             Title = "Smart Collection";
+            MatchingMode = TagMatchingMode.Or; // Default to OR for backward compatibility
         }
 
-        public TagTitlePair(string tag, string title = null)
+        public TagTitlePair(string tag, string title = null, TagMatchingMode matchingMode = TagMatchingMode.Or)
         {
             Tag = tag;
             Title = title ?? GetDefaultTitle(tag);
+            MatchingMode = matchingMode;
         }
 
         private static string GetDefaultTitle(string tag)
