@@ -14,6 +14,11 @@
       }
       .title-input {
         flex: 1;
+        margin-right: 10px;
+      }
+      .matching-mode-select {
+        width: 80px;
+        margin-right: 10px;
       }
       .add-tag-button {
         margin-bottom: 15px;
@@ -38,7 +43,7 @@
     <div
       data-role="page"
       class="page type-interior pluginConfigurationPage tbsConfigurationPage"
-      data-require="emby-input,emby-button"
+      data-require="emby-input,emby-button,emby-select"
     >
       <div data-role="content">
         <div class="content-primary">
@@ -56,7 +61,7 @@
             <div class="verticalSection">
               <div class="inputContainer">
                 <label class="inputLabel inputLabelUnfocused" for="tag-title-pairs">Tags and Collection Titles:</label>
-                <div class="help-text">For each collection, you can specify multiple tags separated by commas (e.g., "christmas, holiday, winter")</div>
+                <div class="help-text">For each collection, you can specify multiple tags separated by commas (e.g., "christmas, holiday, winter"). Choose "OR" to include items matching any tag, or "AND" to require items match all tags.</div>
                 <div id="tag-title-pairs"></div>
               </div>
               
@@ -93,7 +98,7 @@
       </div>
 
       <script type="text/javascript" defer>
-        function createTagTitlePairElement(tag = '', title = '') {
+        function createTagTitlePairElement(tag = '', title = '', matchingMode = 0) {
           const container = document.createElement('div');
           container.className = 'tag-title-container';
           
@@ -111,6 +116,24 @@
           titleInput.placeholder = 'Collection Title (optional)';
           titleInput.value = title;
           
+          // Create matching mode dropdown
+          const matchingModeSelect = document.createElement('select');
+          matchingModeSelect.is = 'emby-select';
+          matchingModeSelect.className = 'matching-mode-select';
+          
+          const orOption = document.createElement('option');
+          orOption.value = '0';
+          orOption.textContent = 'OR';
+          orOption.selected = matchingMode === 0;
+          
+          const andOption = document.createElement('option');
+          andOption.value = '1';
+          andOption.textContent = 'AND';
+          andOption.selected = matchingMode === 1;
+          
+          matchingModeSelect.appendChild(orOption);
+          matchingModeSelect.appendChild(andOption);
+          
           const removeButton = document.createElement('button');
           removeButton.is = 'emby-button';
           removeButton.type = 'button';
@@ -122,6 +145,7 @@
           
           container.appendChild(tagInput);
           container.appendChild(titleInput);
+          container.appendChild(matchingModeSelect);
           container.appendChild(removeButton);
           
           return container;
@@ -138,7 +162,7 @@
               // Check if we have the TagTitlePairs property
               if (config.TagTitlePairs && config.TagTitlePairs.length > 0) {
                 config.TagTitlePairs.forEach(pair => {
-                  const element = createTagTitlePairElement(pair.Tag, pair.Title);
+                  const element = createTagTitlePairElement(pair.Tag, pair.Title, pair.MatchingMode);
                   tagTitlePairsContainer.appendChild(element);
                 });
               } 
@@ -171,14 +195,17 @@
           tagTitleContainers.forEach(container => {
             const tagInput = container.querySelector('.tag-input');
             const titleInput = container.querySelector('.title-input');
+            const matchingModeSelect = container.querySelector('.matching-mode-select');
             
             if (tagInput.value.trim()) {
               const tag = tagInput.value.trim();
               const title = titleInput.value.trim();
+              const matchingMode = parseInt(matchingModeSelect.value);
               
               tagTitlePairs.push({
                 Tag: tag,
-                Title: title || null // Use null if title is empty
+                Title: title || null, // Use null if title is empty
+                MatchingMode: matchingMode
               });
               
               tags.push(tag); // For backward compatibility
