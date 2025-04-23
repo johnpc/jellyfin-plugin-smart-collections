@@ -446,6 +446,7 @@ namespace Jellyfin.Plugin.SmartCollections
             
             // Get or create the collection
             var collection = GetBoxSetByName(collectionName);
+            bool isNewCollection = false;
             if (collection is null)
             {
                 _logger.LogInformation("{Name} not found, creating.", collectionName);
@@ -455,6 +456,7 @@ namespace Jellyfin.Plugin.SmartCollections
                     IsLocked = true
                 });
                 collection.Tags = new[] { "smartcollection" };
+                isNewCollection = true;
             }
             collection.DisplayOrder = "Default";
 
@@ -528,7 +530,17 @@ namespace Jellyfin.Plugin.SmartCollections
 
             await RemoveUnwantedMediaItems(collection, mediaItems);
             await AddWantedMediaItems(collection, mediaItems);
-            await SetPhotoForCollection(collection, specificPerson);
+            
+            // Only set the photo for the collection if it's newly created
+            if (isNewCollection)
+            {
+                _logger.LogInformation("Setting image for newly created collection: {CollectionName}", collectionName);
+                await SetPhotoForCollection(collection, specificPerson);
+            }
+            else
+            {
+                _logger.LogInformation("Preserving existing image for collection: {CollectionName}", collectionName);
+            }
         }
 
         private void OnTimerElapsed()
