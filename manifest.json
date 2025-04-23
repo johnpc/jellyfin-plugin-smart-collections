@@ -8,6 +8,14 @@
         "category": "General",
         "versions": [
             {
+                "version": "0.0.0.8",
+                "changelog": "- See the full changelog at [GitHub](https://github.com/johnpc/jellyfin-plugin-smart-collections/releases/tag/0.0.0.8)\n",
+                "targetAbi": "10.9.9.0",
+                "sourceUrl": "https://github.com/johnpc/jellyfin-plugin-smart-collections/releases/download/0.0.0.8/smart-collections-0.0.0.8.zip",
+                "checksum": "f193c45b747c33c70eefc06f4d588049",
+                "timestamp": "2025-04-23T02:05:06Z"
+            },
+            {
                 "version": "0.0.0.7",
                 "changelog": "- See the full changelog at [GitHub](https://github.com/johnpc/jellyfin-plugin-smart-collections/releases/tag/0.0.0.7)\n",
                 "targetAbi": "10.9.9.0",
