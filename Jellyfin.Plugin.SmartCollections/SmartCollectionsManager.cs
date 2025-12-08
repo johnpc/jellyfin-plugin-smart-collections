@@ -15,7 +15,6 @@ using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Logging;
 using Jellyfin.Data.Enums;
-using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Collections;
 using MediaBrowser.Controller.Providers;
 using Jellyfin.Plugin.SmartCollections.Configuration;
