@@ -21,10 +21,10 @@ jobs:
         dotnet-version: 9.0.x
     
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore Jellyfin.Plugin.SmartCollections.sln
     
     - name: Build
-      run: dotnet build --configuration Release --no-restore /p:TreatWarningsAsErrors=false
+      run: dotnet build Jellyfin.Plugin.SmartCollections.sln --configuration Release --no-restore /p:TreatWarningsAsErrors=false
     
     - name: Get version from tag
       id: get_version
@@ -38,45 +38,45 @@ jobs:
     - name: Create zip file
       run: |
         cd release
-        zip -r ../jellyfin-plugin-smartcollections-${{ steps.get_version.outputs.VERSION }}.zip .
+        zip -r ../jellyfin-plugin-smart-collections-${{ steps.get_version.outputs.VERSION }}.zip .
         cd ..
     
     - name: Calculate checksum
       id: calculate_checksum
       run: |
-        CHECKSUM=$(md5sum jellyfin-plugin-smartcollections-${{ steps.get_version.outputs.VERSION }}.zip | awk '{ print $1 }')
+        CHECKSUM=$(md5sum jellyfin-plugin-smart-collections-${{ steps.get_version.outputs.VERSION }}.zip | awk '{ print $1 }')
         echo "CHECKSUM=$CHECKSUM" >> $GITHUB_OUTPUT
     
     - name: Create manifest.json
       run: |
-        cat > manifest.json << EOF
+        cat > manifest.json << MANIFEST_EOF
         [
           {
             "guid": "09612e52-0f93-41ab-a6ab-5a19479f5315",
             "name": "Smart Collections",
             "overview": "Enables creation of Smart Collections based on Tag",
             "description": "Enables creation of Smart Collections based on Tag",
-            "owner": "johnpc",
+            "owner": "jellyfin-plugin-smart-collections",
             "category": "General",
             "versions": [
               {
                 "version": "${{ steps.get_version.outputs.VERSION }}",
-                "changelog": "- See the full changelog at [GitHub](https://github.com/johnpc/jellyfin-plugin-smart-collections/releases/tag/${{ steps.get_version.outputs.VERSION }})\n",
-                "targetAbi": "10.9.9.0",
-                "sourceUrl": "https://github.com/johnpc/jellyfin-plugin-smart-collections/releases/download/${{ steps.get_version.outputs.VERSION }}/jellyfin-plugin-smartcollections-${{ steps.get_version.outputs.VERSION }}.zip",
+                "changelog": "See the full changelog at [GitHub](https://github.com/johnpc/jellyfin-plugin-smart-collections/releases/tag/${{ steps.get_version.outputs.VERSION }})",
+                "targetAbi": "10.11.0.0",
+                "sourceUrl": "https://github.com/johnpc/jellyfin-plugin-smart-collections/releases/download/${{ steps.get_version.outputs.VERSION }}/jellyfin-plugin-smart-collections-${{ steps.get_version.outputs.VERSION }}.zip",
                 "checksum": "${{ steps.calculate_checksum.outputs.CHECKSUM }}",
                 "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
               }
             ]
           }
         ]
-        EOF
+        MANIFEST_EOF
     
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          jellyfin-plugin-smartcollections-${{ steps.get_version.outputs.VERSION }}.zip
+          jellyfin-plugin-smart-collections-${{ steps.get_version.outputs.VERSION }}.zip
           manifest.json
         draft: false
         prerelease: false
