@@ -41,10 +41,43 @@ jobs:
         zip -r ../jellyfin-plugin-smartcollections-${{ steps.get_version.outputs.VERSION }}.zip .
         cd ..
     
+    - name: Calculate checksum
+      id: calculate_checksum
+      run: |
+        CHECKSUM=$(md5sum jellyfin-plugin-smartcollections-${{ steps.get_version.outputs.VERSION }}.zip | awk '{ print $1 }')
+        echo "CHECKSUM=$CHECKSUM" >> $GITHUB_OUTPUT
+    
+    - name: Create manifest.json
+      run: |
+        cat > manifest.json << EOF
+        [
+          {
+            "guid": "09612e52-0f93-41ab-a6ab-5a19479f5315",
+            "name": "Smart Collections",
+            "overview": "Enables creation of Smart Collections based on Tag",
+            "description": "Enables creation of Smart Collections based on Tag",
+            "owner": "johnpc",
+            "category": "General",
+            "versions": [
+              {
+                "version": "${{ steps.get_version.outputs.VERSION }}",
+                "changelog": "- See the full changelog at [GitHub](https://github.com/johnpc/jellyfin-plugin-smart-collections/releases/tag/${{ steps.get_version.outputs.VERSION }})\n",
+                "targetAbi": "10.9.9.0",
+                "sourceUrl": "https://github.com/johnpc/jellyfin-plugin-smart-collections/releases/download/${{ steps.get_version.outputs.VERSION }}/jellyfin-plugin-smartcollections-${{ steps.get_version.outputs.VERSION }}.zip",
+                "checksum": "${{ steps.calculate_checksum.outputs.CHECKSUM }}",
+                "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+              }
+            ]
+          }
+        ]
+        EOF
+    
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
-        files: jellyfin-plugin-smartcollections-${{ steps.get_version.outputs.VERSION }}.zip
+        files: |
+          jellyfin-plugin-smartcollections-${{ steps.get_version.outputs.VERSION }}.zip
+          manifest.json
         draft: false
         prerelease: false
       env:
