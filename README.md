@@ -56,16 +56,27 @@ make build
 
 ## Deploy Process
 
-For now, the deploy process is manual. Manually update the VERSION variable in the code, then:
+The deploy process is automated via GitHub Actions:
 
-Run
-
+1. Create and push a new tag:
 ```bash
-# Make sure you've updated the VERSION variable
-make build
-make zip
-md5sum ./smart-collections-<version>.zip
-# Manually update manifest.json with a release for this hash
-make create-gh-release
-# git push whatever changes, including the new version in the manifest
+git tag 0.0.0.X
+git push origin 0.0.0.X
 ```
+
+2. GitHub Actions will automatically:
+   - Build the plugin
+   - Create a zip file
+   - Calculate the MD5 checksum
+   - Generate a manifest.json for this version
+   - Create a GitHub release with both files
+
+3. Update the repository manifest:
+```bash
+./generate_manifest.sh
+git add manifest.json
+git commit -m "Update manifest with version 0.0.0.X"
+git push
+```
+
+The `generate_manifest.sh` script aggregates all release manifests into a single manifest.json file that users can reference for plugin installation.
