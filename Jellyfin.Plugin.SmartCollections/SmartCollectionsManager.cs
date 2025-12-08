@@ -15,7 +15,7 @@ using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Logging;
 using Jellyfin.Data.Enums;
-using Jellyfin.Data.Entities;
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Collections;
 using MediaBrowser.Controller.Providers;
 using Jellyfin.Plugin.SmartCollections.Configuration;
@@ -46,7 +46,7 @@ namespace Jellyfin.Plugin.SmartCollections
         private IEnumerable<Series> GetSeriesFromLibrary(string term, Person? specificPerson = null)
         {
             IEnumerable<Series> results = Enumerable.Empty<Series>();
-            
+
             if (specificPerson == null)
             {
                 // When no specific person is provided, search by tags and genres
@@ -67,14 +67,14 @@ namespace Jellyfin.Plugin.SmartCollections
                     HasTvdbId = true,
                     Genres = [term]
                 }).Select(m => m as Series);
-                
+
                 results = byTags.Union(byGenres);
             }
             else
             {
                 // When a specific person is provided, search by actor and director
                 var personName = specificPerson.Name;
-                
+
                 var byActors = _libraryManager.GetItemList(new InternalItemsQuery
                 {
                     IncludeItemTypes = new[] { BaseItemKind.Series },
@@ -94,35 +94,35 @@ namespace Jellyfin.Plugin.SmartCollections
                     Person = personName,
                     PersonTypes = new[] { "Director" }
                 }).Select(m => m as Series);
-                
+
                 results = byActors.Union(byDirectors);
             }
 
             return results;
         }
-        
+
         private IEnumerable<Series> GetSeriesFromLibraryWithAndMatching(string[] terms, Person? specificPerson = null)
         {
             if (terms.Length == 0)
                 return Enumerable.Empty<Series>();
-                
+
             // Start with all series matching the first tag
             var results = GetSeriesFromLibrary(terms[0], specificPerson).ToList();
-            
+
             // For each additional tag, filter the results to only include series that also match that tag
             for (int i = 1; i < terms.Length && results.Any(); i++)
             {
                 var matchingItems = GetSeriesFromLibrary(terms[i], specificPerson).ToList();
                 results = results.Where(item => matchingItems.Any(m => m.Id == item.Id)).ToList();
             }
-            
+
             return results;
         }
 
         private IEnumerable<Movie> GetMoviesFromLibrary(string term, Person? specificPerson = null)
         {
             IEnumerable<Movie> results = Enumerable.Empty<Movie>();
-            
+
             if (specificPerson == null)
             {
                 // When no specific person is provided, search by tags and genres
@@ -143,14 +143,14 @@ namespace Jellyfin.Plugin.SmartCollections
                     HasTvdbId = false,
                     Genres = [term]
                 }).Select(m => m as Movie);
-                
+
                 results = byTags.Union(byGenres);
             }
             else
             {
                 // When a specific person is provided, search by actor and director
                 var personName = specificPerson.Name;
-                
+
                 var byActors = _libraryManager.GetItemList(new InternalItemsQuery
                 {
                     IncludeItemTypes = new[] { BaseItemKind.Movie },
@@ -170,28 +170,28 @@ namespace Jellyfin.Plugin.SmartCollections
                     Person = personName,
                     PersonTypes = new[] { "Director" }
                 }).Select(m => m as Movie);
-                
+
                 results = byActors.Union(byDirectors);
             }
 
             return results;
         }
-        
+
         private IEnumerable<Movie> GetMoviesFromLibraryWithAndMatching(string[] terms, Person? specificPerson = null)
         {
             if (terms.Length == 0)
                 return Enumerable.Empty<Movie>();
-                
+
             // Start with all movies matching the first tag
             var results = GetMoviesFromLibrary(terms[0], specificPerson).ToList();
-            
+
             // For each additional tag, filter the results to only include movies that also match that tag
             for (int i = 1; i < terms.Length && results.Any(); i++)
             {
                 var matchingItems = GetMoviesFromLibrary(terms[i], specificPerson).ToList();
                 results = results.Where(item => matchingItems.Any(m => m.Id == item.Id)).ToList();
             }
-            
+
             return results;
         }
 
@@ -283,12 +283,12 @@ namespace Jellyfin.Plugin.SmartCollections
             {
                 return tagTitlePair.Title;
             }
-            
+
             // Otherwise use the default format based on the first tag
             string[] tags = tagTitlePair.GetTagsArray();
             if (tags.Length == 0)
                 return "Smart Collection";
-                
+
             string firstTag = tags[0];
             string capitalizedTag = firstTag.Length > 0
                 ? char.ToUpper(firstTag[0]) + firstTag[1..]
@@ -440,10 +440,10 @@ namespace Jellyfin.Plugin.SmartCollections
         private async Task ExecuteSmartCollectionsForTagTitlePair(TagTitlePair tagTitlePair)
         {
             _logger.LogInformation($"Performing ExecuteSmartCollections for tag: {tagTitlePair.Tag}");
-            
+
             // Get the collection name from the tag-title pair
             var collectionName = GetCollectionName(tagTitlePair);
-            
+
             // Get or create the collection
             var collection = GetBoxSetByName(collectionName);
             bool isNewCollection = false;
@@ -483,7 +483,7 @@ namespace Jellyfin.Plugin.SmartCollections
                         p.Name.Equals(tag, StringComparison.OrdinalIgnoreCase) &&
                         p.ImageInfos != null &&
                         p.ImageInfos.Any(i => i.Type == ImageType.Primary)) as Person;
-                
+
                 if (specificPerson != null)
                 {
                     _logger.LogInformation("Found specific person {PersonName} matching tag {Tag}",
@@ -495,7 +495,7 @@ namespace Jellyfin.Plugin.SmartCollections
             // Collect all media items based on the matching mode
             var allMovies = new List<Movie>();
             var allSeries = new List<Series>();
-            
+
             if (tagTitlePair.MatchingMode == TagMatchingMode.And)
             {
                 // AND matching - items must match all tags
@@ -511,26 +511,26 @@ namespace Jellyfin.Plugin.SmartCollections
                 {
                     var movies = GetMoviesFromLibrary(tag, specificPerson).ToList();
                     var series = GetSeriesFromLibrary(tag, specificPerson).ToList();
-                    
+
                     _logger.LogInformation($"Found {movies.Count} movies and {series.Count} series for tag: {tag}");
-                    
+
                     allMovies.AddRange(movies);
                     allSeries.AddRange(series);
                 }
-                
+
                 // Remove duplicates
                 allMovies = allMovies.Distinct().ToList();
                 allSeries = allSeries.Distinct().ToList();
             }
-            
+
             _logger.LogInformation($"Processing {allMovies.Count} movies and {allSeries.Count} series total for collection: {collectionName}");
-            
+
             var mediaItems = allMovies.Cast<BaseItem>().Concat(allSeries.Cast<BaseItem>())
                 .ToList();
 
             await RemoveUnwantedMediaItems(collection, mediaItems);
             await AddWantedMediaItems(collection, mediaItems);
-            
+
             // Only set the photo for the collection if it's newly created
             if (isNewCollection)
             {
