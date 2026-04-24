@@ -2,8 +2,8 @@ name: Build and Release
 
 on:
   push:
-    tags:
-      - '*'
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -11,70 +11,100 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v3
-    
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Get next version
+      id: get_version
+      run: |
+        # Get latest tag, default to 0.0.0.0 if none
+        LATEST=$(git tag --sort=-v:refname | head -1)
+        if [ -z "$LATEST" ]; then
+          LATEST="0.0.0.0"
+        fi
+        # Bump the last segment
+        NEXT=$(echo "$LATEST" | awk -F. '{$NF=$NF+1; print}' OFS=.)
+        echo "VERSION=$NEXT" >> $GITHUB_OUTPUT
+        echo "Next version: $NEXT"
+
     - name: Setup .NET
-      uses: actions/setup-dotnet@v3
+      uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 9.0.x
-    
+
     - name: Restore dependencies
       run: dotnet restore Jellyfin.Plugin.SmartCollections.sln
-    
+
     - name: Build
-      run: dotnet build Jellyfin.Plugin.SmartCollections.sln --configuration Release --no-restore /p:TreatWarningsAsErrors=false /p:Version=${{ steps.get_version.outputs.VERSION }} /p:AssemblyVersion=${{ steps.get_version.outputs.VERSION }} /p:FileVersion=${{ steps.get_version.outputs.VERSION }}
-    
-    - name: Get version from tag
-      id: get_version
-      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-    
-    - name: Create release directory
       run: |
+        VERSION=${{ steps.get_version.outputs.VERSION }}
+        dotnet build Jellyfin.Plugin.SmartCollections.sln \
+          --configuration Release --no-restore \
+          /p:TreatWarningsAsErrors=false \
+          /p:Version=$VERSION \
+          /p:AssemblyVersion=$VERSION \
+          /p:FileVersion=$VERSION
+
+    - name: Create release zip
+      run: |
+        VERSION=${{ steps.get_version.outputs.VERSION }}
         mkdir -p release
         find . -path "*/bin/Release/net9.0/*.dll" -exec cp {} release/ \;
-    
-    - name: Create zip file
-      run: |
         cd release
-        zip -r ../jellyfin-plugin-smart-collections-${{ steps.get_version.outputs.VERSION }}.zip .
-        cd ..
-    
+        zip -r ../jellyfin-plugin-smart-collections-${VERSION}.zip .
+
     - name: Calculate checksum
       id: calculate_checksum
       run: |
-        CHECKSUM=$(md5sum jellyfin-plugin-smart-collections-${{ steps.get_version.outputs.VERSION }}.zip | awk '{ print $1 }')
+        VERSION=${{ steps.get_version.outputs.VERSION }}
+        CHECKSUM=$(md5sum jellyfin-plugin-smart-collections-${VERSION}.zip | awk '{ print $1 }')
         echo "CHECKSUM=$CHECKSUM" >> $GITHUB_OUTPUT
-    
-    - name: Create manifest.json
+
+    - name: Generate manifest.json
       run: |
-        cat > manifest.json << MANIFEST_EOF
+        VERSION=${{ steps.get_version.outputs.VERSION }}
+        CHECKSUM=${{ steps.calculate_checksum.outputs.CHECKSUM }}
+        TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        cat > manifest.json << EOF
         [
           {
             "guid": "09612e52-0f93-41ab-a6ab-5a19479f5315",
             "name": "Smart Collections",
             "overview": "Enables creation of Smart Collections based on Tag",
             "description": "Enables creation of Smart Collections based on Tag",
-            "owner": "jellyfin-plugin-smart-collections",
+            "owner": "johnpc",
             "category": "General",
             "versions": [
               {
-                "version": "${{ steps.get_version.outputs.VERSION }}",
-                "changelog": "See the full changelog at [GitHub](https://github.com/johnpc/jellyfin-plugin-smart-collections/releases/tag/${{ steps.get_version.outputs.VERSION }})",
+                "version": "${VERSION}",
+                "changelog": "See the full changelog at [GitHub](https://github.com/johnpc/jellyfin-plugin-smart-collections/releases/tag/${VERSION})",
                 "targetAbi": "10.11.0.0",
-                "sourceUrl": "https://github.com/johnpc/jellyfin-plugin-smart-collections/releases/download/${{ steps.get_version.outputs.VERSION }}/jellyfin-plugin-smart-collections-${{ steps.get_version.outputs.VERSION }}.zip",
-                "checksum": "${{ steps.calculate_checksum.outputs.CHECKSUM }}",
-                "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+                "sourceUrl": "https://github.com/johnpc/jellyfin-plugin-smart-collections/releases/download/${VERSION}/jellyfin-plugin-smart-collections-${VERSION}.zip",
+                "checksum": "${CHECKSUM}",
+                "timestamp": "${TIMESTAMP}"
               }
             ]
           }
         ]
-        MANIFEST_EOF
-    
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
+        EOF
+
+    - name: Create tag and GitHub Release
+      run: |
+        VERSION=${{ steps.get_version.outputs.VERSION }}
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git tag "$VERSION"
+        git push origin "$VERSION"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload Release
+      uses: softprops/action-gh-release@v2
       with:
+        tag_name: ${{ steps.get_version.outputs.VERSION }}
         files: |
           jellyfin-plugin-smart-collections-${{ steps.get_version.outputs.VERSION }}.zip
           manifest.json
@@ -85,11 +115,8 @@ jobs:
 
     - name: Update manifest on main
       run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
         git fetch origin main
         git checkout main
-        cp manifest.json manifest.json
         git add manifest.json
         git commit -m "chore: update manifest for ${{ steps.get_version.outputs.VERSION }}" || true
         git push origin main
