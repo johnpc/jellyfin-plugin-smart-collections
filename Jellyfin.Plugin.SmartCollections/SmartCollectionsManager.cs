@@ -455,6 +455,11 @@ namespace Jellyfin.Plugin.SmartCollections
                     IsLocked = true
                 });
                 collection.Tags = new[] { "smartcollection" };
+                await _libraryManager.UpdateItemAsync(
+                    collection,
+                    collection.GetParent(),
+                    ItemUpdateType.MetadataEdit,
+                    CancellationToken.None);
                 isNewCollection = true;
             }
             collection.DisplayOrder = "Default";
