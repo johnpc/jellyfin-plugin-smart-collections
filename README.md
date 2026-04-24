@@ -56,27 +56,8 @@ make build
 
 ## Deploy Process
 
-The deploy process is automated via GitHub Actions:
-
-1. Create and push a new tag:
-```bash
-git tag 0.0.0.X
-git push origin 0.0.0.X
-```
-
-2. GitHub Actions will automatically:
-   - Build the plugin
-   - Create a zip file
-   - Calculate the MD5 checksum
-   - Generate a manifest.json for this version
-   - Create a GitHub release with both files
-
-3. Update the repository manifest:
-```bash
-./generate_manifest.sh
-git add manifest.json
-git commit -m "Update manifest with version 0.0.0.X"
-git push
-```
-
-The `generate_manifest.sh` script aggregates all release manifests into a single manifest.json file that users can reference for plugin installation.
+Releases are fully automated. Just merge to `main` and GitHub Actions will:
+- Auto-bump the patch version from the latest tag
+- Build the plugin with the correct version
+- Create a GitHub release with the zip + manifest
+- Update the manifest on `main` so users get the new version automatically
