@@ -24,7 +24,7 @@ jobs:
       run: dotnet restore Jellyfin.Plugin.SmartCollections.sln
     
     - name: Build
-      run: dotnet build Jellyfin.Plugin.SmartCollections.sln --configuration Release --no-restore /p:TreatWarningsAsErrors=false
+      run: dotnet build Jellyfin.Plugin.SmartCollections.sln --configuration Release --no-restore /p:TreatWarningsAsErrors=false /p:Version=${{ steps.get_version.outputs.VERSION }} /p:AssemblyVersion=${{ steps.get_version.outputs.VERSION }} /p:FileVersion=${{ steps.get_version.outputs.VERSION }}
     
     - name: Get version from tag
       id: get_version
@@ -82,3 +82,14 @@ jobs:
         prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Update manifest on main
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git fetch origin main
+        git checkout main
+        cp manifest.json manifest.json
+        git add manifest.json
+        git commit -m "chore: update manifest for ${{ steps.get_version.outputs.VERSION }}" || true
+        git push origin main
