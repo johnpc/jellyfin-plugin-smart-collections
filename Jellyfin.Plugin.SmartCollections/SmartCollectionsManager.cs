@@ -54,7 +54,6 @@ namespace Jellyfin.Plugin.SmartCollections
                     IncludeItemTypes = new[] { BaseItemKind.Series },
                     IsVirtualItem = false,
                     Recursive = true,
-                    HasTvdbId = true,
                     Tags = [term]
                 }).Select(m => m as Series);
 
@@ -63,7 +62,6 @@ namespace Jellyfin.Plugin.SmartCollections
                     IncludeItemTypes = new[] { BaseItemKind.Series },
                     IsVirtualItem = false,
                     Recursive = true,
-                    HasTvdbId = true,
                     Genres = [term]
                 }).Select(m => m as Series);
 
@@ -79,7 +77,6 @@ namespace Jellyfin.Plugin.SmartCollections
                     IncludeItemTypes = new[] { BaseItemKind.Series },
                     IsVirtualItem = false,
                     Recursive = true,
-                    HasTvdbId = true,
                     Person = personName,
                     PersonTypes = new[] { "Actor" }
                 }).Select(m => m as Series);
@@ -89,7 +86,6 @@ namespace Jellyfin.Plugin.SmartCollections
                     IncludeItemTypes = new[] { BaseItemKind.Series },
                     IsVirtualItem = false,
                     Recursive = true,
-                    HasTvdbId = true,
                     Person = personName,
                     PersonTypes = new[] { "Director" }
                 }).Select(m => m as Series);
@@ -130,7 +126,6 @@ namespace Jellyfin.Plugin.SmartCollections
                     IncludeItemTypes = new[] { BaseItemKind.Movie },
                     IsVirtualItem = false,
                     Recursive = true,
-                    HasTvdbId = false,
                     Tags = [term]
                 }).Select(m => m as Movie);
 
@@ -139,7 +134,6 @@ namespace Jellyfin.Plugin.SmartCollections
                     IncludeItemTypes = new[] { BaseItemKind.Movie },
                     IsVirtualItem = false,
                     Recursive = true,
-                    HasTvdbId = false,
                     Genres = [term]
                 }).Select(m => m as Movie);
 
@@ -155,7 +149,6 @@ namespace Jellyfin.Plugin.SmartCollections
                     IncludeItemTypes = new[] { BaseItemKind.Movie },
                     IsVirtualItem = false,
                     Recursive = true,
-                    HasTvdbId = false,
                     Person = personName,
                     PersonTypes = new[] { "Actor" }
                 }).Select(m => m as Movie);
@@ -165,7 +158,6 @@ namespace Jellyfin.Plugin.SmartCollections
                     IncludeItemTypes = new[] { BaseItemKind.Movie },
                     IsVirtualItem = false,
                     Recursive = true,
-                    HasTvdbId = false,
                     Person = personName,
                     PersonTypes = new[] { "Director" }
                 }).Select(m => m as Movie);
