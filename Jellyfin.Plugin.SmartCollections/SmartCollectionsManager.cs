@@ -464,49 +464,23 @@ namespace Jellyfin.Plugin.SmartCollections
                 return;
             }
 
-            // Check if any tag might correspond to a person
-            Person? specificPerson = null;
-            foreach (var tag in tags)
-            {
-                var personQuery = new InternalItemsQuery
-                {
-                    IncludeItemTypes = new[] { BaseItemKind.Person },
-                    Name = tag
-                };
-
-                specificPerson = _libraryManager.GetItemList(personQuery)
-                    .FirstOrDefault(p =>
-                        p.Name.Equals(tag, StringComparison.OrdinalIgnoreCase) &&
-                        p.ImageInfos != null &&
-                        p.ImageInfos.Any(i => i.Type == ImageType.Primary)) as Person;
-
-                if (specificPerson != null)
-                {
-                    _logger.LogInformation("Found specific person {PersonName} matching tag {Tag}",
-                        specificPerson.Name, tag);
-                    break;
-                }
-            }
-
-            // Collect all media items based on the matching mode
+            // First, try to find media items by tag/genre (no person matching)
             var allMovies = new List<Movie>();
             var allSeries = new List<Series>();
 
             if (tagTitlePair.MatchingMode == TagMatchingMode.And)
             {
-                // AND matching - items must match all tags
                 _logger.LogInformation("Using AND matching mode for tags: {Tags}", string.Join(", ", tags));
-                allMovies = GetMoviesFromLibraryWithAndMatching(tags, specificPerson).ToList();
-                allSeries = GetSeriesFromLibraryWithAndMatching(tags, specificPerson).ToList();
+                allMovies = GetMoviesFromLibraryWithAndMatching(tags, null).ToList();
+                allSeries = GetSeriesFromLibraryWithAndMatching(tags, null).ToList();
             }
             else
             {
-                // OR matching (default) - items can match any tag
                 _logger.LogInformation("Using OR matching mode for tags: {Tags}", string.Join(", ", tags));
                 foreach (var tag in tags)
                 {
-                    var movies = GetMoviesFromLibrary(tag, specificPerson).ToList();
-                    var series = GetSeriesFromLibrary(tag, specificPerson).ToList();
+                    var movies = GetMoviesFromLibrary(tag, null).ToList();
+                    var series = GetSeriesFromLibrary(tag, null).ToList();
 
                     _logger.LogInformation($"Found {movies.Count} movies and {series.Count} series for tag: {tag}");
 
@@ -514,9 +488,55 @@ namespace Jellyfin.Plugin.SmartCollections
                     allSeries.AddRange(series);
                 }
 
-                // Remove duplicates
                 allMovies = allMovies.Distinct().ToList();
                 allSeries = allSeries.Distinct().ToList();
+            }
+
+            // Only fall back to person matching if no tag/genre results were found
+            Person? specificPerson = null;
+            if (allMovies.Count == 0 && allSeries.Count == 0)
+            {
+                _logger.LogInformation("No tag/genre matches found, falling back to person matching for tags: {Tags}", string.Join(", ", tags));
+                foreach (var tag in tags)
+                {
+                    var personQuery = new InternalItemsQuery
+                    {
+                        IncludeItemTypes = new[] { BaseItemKind.Person },
+                        Name = tag
+                    };
+
+                    specificPerson = _libraryManager.GetItemList(personQuery)
+                        .FirstOrDefault(p =>
+                            p.Name.Equals(tag, StringComparison.OrdinalIgnoreCase) &&
+                            p.ImageInfos != null &&
+                            p.ImageInfos.Any(i => i.Type == ImageType.Primary)) as Person;
+
+                    if (specificPerson != null)
+                    {
+                        _logger.LogInformation("Found specific person {PersonName} matching tag {Tag}",
+                            specificPerson.Name, tag);
+                        break;
+                    }
+                }
+
+                if (specificPerson != null)
+                {
+                    if (tagTitlePair.MatchingMode == TagMatchingMode.And)
+                    {
+                        allMovies = GetMoviesFromLibraryWithAndMatching(tags, specificPerson).ToList();
+                        allSeries = GetSeriesFromLibraryWithAndMatching(tags, specificPerson).ToList();
+                    }
+                    else
+                    {
+                        foreach (var tag in tags)
+                        {
+                            allMovies.AddRange(GetMoviesFromLibrary(tag, specificPerson));
+                            allSeries.AddRange(GetSeriesFromLibrary(tag, specificPerson));
+                        }
+                        allMovies = allMovies.Distinct().ToList();
+                        allSeries = allSeries.Distinct().ToList();
+                    }
+                }
             }
 
             _logger.LogInformation($"Processing {allMovies.Count} movies and {allSeries.Count} series total for collection: {collectionName}");
