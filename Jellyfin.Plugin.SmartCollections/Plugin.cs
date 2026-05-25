@@ -45,7 +45,7 @@ namespace Jellyfin.Plugin.SmartCollections
                 providerManager,
                 collectionManager,
                 libraryManager,
-                loggerFactory.CreateLogger<SmartCollectionsManager>(),
+                loggerFactory,
                 appPaths);
 
             InitializeConfigurationIfNeeded();

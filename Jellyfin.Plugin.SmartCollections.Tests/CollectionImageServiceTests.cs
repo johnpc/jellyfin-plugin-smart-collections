@@ -1,6 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using FluentAssertions;
 using Jellyfin.Plugin.SmartCollections.Services;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
@@ -146,6 +145,93 @@ namespace Jellyfin.Plugin.SmartCollections.Tests
                 Arg.Any<BaseItem>(),
                 Arg.Any<ItemUpdateType>(),
                 Arg.Any<System.Threading.CancellationToken>());
+        }
+
+        [Fact]
+        public async Task SetImageAsync_PersonWithNullImageInfos_FallsThrough()
+        {
+            // Arrange
+            var collection = new BoxSet { Name = "Test2", Id = Guid.NewGuid() };
+            var person = new Person
+            {
+                Name = "Null Infos",
+                Id = Guid.NewGuid(),
+                ImageInfos = null,
+            };
+
+            _libraryQueryService.FindPersonWithImage("Test2").Returns((Person?)null);
+
+            // Act
+            await _sut.SetImageAsync(collection, person);
+
+            // Assert
+            await _libraryManager.DidNotReceive().UpdateItemAsync(
+                Arg.Any<BaseItem>(),
+                Arg.Any<BaseItem>(),
+                Arg.Any<ItemUpdateType>(),
+                Arg.Any<System.Threading.CancellationToken>());
+        }
+
+        [Fact]
+        public async Task SetImageAsync_PersonWithNonPrimaryImage_FallsThrough()
+        {
+            // Arrange
+            var collection = new BoxSet { Name = "Test3", Id = Guid.NewGuid() };
+            var person = new Person
+            {
+                Name = "Backdrop Only",
+                Id = Guid.NewGuid(),
+                ImageInfos = new[]
+                {
+                    new ItemImageInfo
+                    {
+                        Type = ImageType.Backdrop,
+                        Path = "/images/backdrop.jpg",
+                    },
+                },
+            };
+
+            _libraryQueryService.FindPersonWithImage("Test3").Returns((Person?)null);
+
+            // Act
+            await _sut.SetImageAsync(collection, person);
+
+            // Assert
+            await _libraryManager.DidNotReceive().UpdateItemAsync(
+                Arg.Any<BaseItem>(),
+                Arg.Any<BaseItem>(),
+                Arg.Any<ItemUpdateType>(),
+                Arg.Any<System.Threading.CancellationToken>());
+        }
+
+        [Fact]
+        public async Task SetImageAsync_ExceptionThrown_DoesNotRethrow()
+        {
+            // Arrange
+            var collection = new BoxSet { Name = "Error Collection", Id = Guid.NewGuid() };
+            var person = new Person
+            {
+                Name = "Bad Person",
+                Id = Guid.NewGuid(),
+                ImageInfos = new[]
+                {
+                    new ItemImageInfo
+                    {
+                        Type = ImageType.Primary,
+                        Path = "/images/bad.jpg",
+                    },
+                },
+            };
+
+            _libraryManager.UpdateItemAsync(
+                Arg.Any<BaseItem>(),
+                Arg.Any<BaseItem>(),
+                Arg.Any<ItemUpdateType>(),
+                Arg.Any<System.Threading.CancellationToken>())
+                .Returns(Task.FromException(new InvalidOperationException("DB error")));
+
+            // Act & Assert - no exception should propagate
+            await _sut.SetImageAsync(collection, person);
         }
     }
 }

@@ -25,20 +25,20 @@ namespace Jellyfin.Plugin.SmartCollections.ScheduledTasks
         /// <param name="providerManager">The provider manager.</param>
         /// <param name="collectionManager">The collection manager.</param>
         /// <param name="libraryManager">The library manager.</param>
-        /// <param name="logger">The logger.</param>
+        /// <param name="loggerFactory">The logger factory.</param>
         /// <param name="applicationPaths">The application paths.</param>
         public ExecuteSmartCollectionsTask(
             IProviderManager providerManager,
             ICollectionManager collectionManager,
             ILibraryManager libraryManager,
-            ILogger<SmartCollectionsManager> logger,
+            ILoggerFactory loggerFactory,
             IApplicationPaths applicationPaths)
         {
             _syncSmartCollectionsManager = new SmartCollectionsManager(
                 providerManager,
                 collectionManager,
                 libraryManager,
-                logger,
+                loggerFactory,
                 applicationPaths);
         }
 

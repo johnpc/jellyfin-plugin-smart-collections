@@ -19,7 +19,7 @@ namespace Jellyfin.Plugin.SmartCollections.Api
     public class SmartCollectionsController : ControllerBase, IDisposable
     {
         private readonly SmartCollectionsManager _syncSmartCollectionsManager;
-        private readonly ILogger<SmartCollectionsManager> _logger;
+        private readonly ILogger<SmartCollectionsController> _logger;
         private bool _disposed;
 
         /// <summary>
@@ -28,22 +28,22 @@ namespace Jellyfin.Plugin.SmartCollections.Api
         /// <param name="providerManager">The provider manager.</param>
         /// <param name="collectionManager">The collection manager.</param>
         /// <param name="libraryManager">The library manager.</param>
-        /// <param name="logger">The logger.</param>
+        /// <param name="loggerFactory">The logger factory.</param>
         /// <param name="applicationPaths">The application paths.</param>
         public SmartCollectionsController(
             IProviderManager providerManager,
             ICollectionManager collectionManager,
             ILibraryManager libraryManager,
-            ILogger<SmartCollectionsManager> logger,
+            ILoggerFactory loggerFactory,
             IApplicationPaths applicationPaths)
         {
             _syncSmartCollectionsManager = new SmartCollectionsManager(
                 providerManager,
                 collectionManager,
                 libraryManager,
-                logger,
+                loggerFactory,
                 applicationPaths);
-            _logger = logger;
+            _logger = loggerFactory.CreateLogger<SmartCollectionsController>();
         }
 
         /// <summary>

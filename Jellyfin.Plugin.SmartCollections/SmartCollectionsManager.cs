@@ -7,7 +7,6 @@ using MediaBrowser.Controller.Collections;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Providers;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Jellyfin.Plugin.SmartCollections
 {
@@ -27,28 +26,28 @@ namespace Jellyfin.Plugin.SmartCollections
         /// <param name="providerManager">The provider manager (unused, kept for DI compat).</param>
         /// <param name="collectionManager">The collection manager.</param>
         /// <param name="libraryManager">The library manager.</param>
-        /// <param name="logger">The logger.</param>
+        /// <param name="loggerFactory">The logger factory.</param>
         /// <param name="applicationPaths">The application paths.</param>
         public SmartCollectionsManager(
             IProviderManager providerManager,
             ICollectionManager collectionManager,
             ILibraryManager libraryManager,
-            ILogger<SmartCollectionsManager> logger,
+            ILoggerFactory loggerFactory,
             IApplicationPaths applicationPaths)
         {
             var libraryQueryService = new LibraryQueryService(libraryManager);
-            var nullImageLogger = NullLogger<CollectionImageService>.Instance;
             var collectionImageService = new CollectionImageService(
                 libraryManager,
                 libraryQueryService,
-                nullImageLogger);
-            var nullSyncLogger = NullLogger<SmartCollectionSyncService>.Instance;
+                loggerFactory.CreateLogger<CollectionImageService>());
+            var configurationProvider = new PluginConfigurationProvider();
             _syncService = new SmartCollectionSyncService(
                 collectionManager,
                 libraryManager,
                 libraryQueryService,
                 collectionImageService,
-                nullSyncLogger);
+                configurationProvider,
+                loggerFactory.CreateLogger<SmartCollectionSyncService>());
             _timer = new Timer(_ => OnTimerElapsed(), null, Timeout.Infinite, Timeout.Infinite);
         }
 

@@ -27,6 +27,7 @@ namespace Jellyfin.Plugin.SmartCollections.Services
         private readonly ILibraryManager _libraryManager;
         private readonly ILibraryQueryService _libraryQueryService;
         private readonly ICollectionImageService _collectionImageService;
+        private readonly IPluginConfigurationProvider _configurationProvider;
         private readonly ILogger<SmartCollectionSyncService> _logger;
 
         /// <summary>
@@ -36,18 +37,21 @@ namespace Jellyfin.Plugin.SmartCollections.Services
         /// <param name="libraryManager">The library manager.</param>
         /// <param name="libraryQueryService">The library query service.</param>
         /// <param name="collectionImageService">The collection image service.</param>
+        /// <param name="configurationProvider">The configuration provider.</param>
         /// <param name="logger">The logger.</param>
         public SmartCollectionSyncService(
             ICollectionManager collectionManager,
             ILibraryManager libraryManager,
             ILibraryQueryService libraryQueryService,
             ICollectionImageService collectionImageService,
+            IPluginConfigurationProvider configurationProvider,
             ILogger<SmartCollectionSyncService> logger)
         {
             _collectionManager = collectionManager;
             _libraryManager = libraryManager;
             _libraryQueryService = libraryQueryService;
             _collectionImageService = collectionImageService;
+            _configurationProvider = configurationProvider;
             _logger = logger;
         }
 
@@ -62,7 +66,7 @@ namespace Jellyfin.Plugin.SmartCollections.Services
         public async Task ExecuteAsync()
         {
             _logger.LogInformation("Performing smart collection sync");
-            var tagTitlePairs = Plugin.Instance?.Configuration.TagTitlePairs;
+            var tagTitlePairs = _configurationProvider.GetTagTitlePairs();
             if (tagTitlePairs == null || tagTitlePairs.Count == 0)
             {
                 _logger.LogInformation("No tag-title pairs configured, skipping sync");
