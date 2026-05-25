@@ -1,0 +1,37 @@
+name: CI
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - name: Restore
+        run: dotnet restore
+      - name: Check formatting
+        run: dotnet format --verify-no-changes
+      - name: Build (strict)
+        run: dotnet build --configuration Release /p:TreatWarningsAsErrors=true
+      - name: Run unit tests with coverage
+        run: |
+          dotnet test Jellyfin.Plugin.SmartCollections.Tests/Jellyfin.Plugin.SmartCollections.Tests.csproj \
+            --configuration Release \
+            --no-build \
+            /p:CollectCoverage=true \
+            /p:CoverletOutputFormat=json \
+            /p:CoverletOutput=../coverage/coverage.json \
+            /p:Include="[Jellyfin.Plugin.SmartCollections]*" \
+            /p:ThresholdType=line \
+            /p:Threshold=80
+      - name: Run acceptance tests
+        run: |
+          dotnet test Jellyfin.Plugin.SmartCollections.AcceptanceTests/Jellyfin.Plugin.SmartCollections.AcceptanceTests.csproj \
+            --configuration Release \
+            --no-build
+      - name: CRAP score check
+        run: bash scripts/check-crap.sh coverage/coverage.json

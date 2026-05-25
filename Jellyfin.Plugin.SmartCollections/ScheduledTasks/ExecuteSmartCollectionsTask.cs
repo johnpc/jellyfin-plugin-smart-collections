@@ -1,36 +1,33 @@
 using System;
-using System.Net.Mime;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Collections;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Providers;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
 
-namespace Jellyfin.Plugin.SmartCollections.Api
+namespace Jellyfin.Plugin.SmartCollections.ScheduledTasks
 {
     /// <summary>
-    /// The Smart Collections API controller.
+    /// Scheduled task that triggers smart collection synchronization.
     /// </summary>
-    [ApiController]
-    [Route("SmartCollections")]
-    [Produces(MediaTypeNames.Application.Json)]
-    public class SmartCollectionsController : ControllerBase, IDisposable
+    public class ExecuteSmartCollectionsTask : IScheduledTask, IDisposable
     {
         private readonly SmartCollectionsManager _syncSmartCollectionsManager;
-        private readonly ILogger<SmartCollectionsManager> _logger;
         private bool _disposed;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="SmartCollectionsController"/> class.
+        /// Initializes a new instance of the <see cref="ExecuteSmartCollectionsTask"/> class.
         /// </summary>
         /// <param name="providerManager">The provider manager.</param>
         /// <param name="collectionManager">The collection manager.</param>
         /// <param name="libraryManager">The library manager.</param>
         /// <param name="logger">The logger.</param>
         /// <param name="applicationPaths">The application paths.</param>
-        public SmartCollectionsController(
+        public ExecuteSmartCollectionsTask(
             IProviderManager providerManager,
             ICollectionManager collectionManager,
             ILibraryManager libraryManager,
@@ -43,21 +40,32 @@ namespace Jellyfin.Plugin.SmartCollections.Api
                 libraryManager,
                 logger,
                 applicationPaths);
-            _logger = logger;
         }
 
-        /// <summary>
-        /// Creates smart collections.
-        /// </summary>
-        /// <returns>A <see cref="NoContentResult"/> indicating success.</returns>
-        [HttpPost("SmartCollections")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        public ActionResult SmartCollectionsRequest()
+        /// <inheritdoc />
+        public string Name => "Smart Collections";
+
+        /// <inheritdoc />
+        public string Key => "SmartCollections";
+
+        /// <inheritdoc />
+        public string Description => "Enables creation of Smart Collections based on Tags";
+
+        /// <inheritdoc />
+        public string Category => "Smart Collections";
+
+        /// <inheritdoc />
+        public Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
+            => _syncSmartCollectionsManager.ExecuteSmartCollections(progress, cancellationToken);
+
+        /// <inheritdoc />
+        public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
         {
-            _logger.LogInformation("Generating Smart Collections");
-            _syncSmartCollectionsManager.ExecuteSmartCollectionsNoProgress();
-            _logger.LogInformation("Completed");
-            return NoContent();
+            yield return new TaskTriggerInfo
+            {
+                Type = TaskTriggerInfoType.IntervalTrigger,
+                IntervalTicks = TimeSpan.FromHours(24).Ticks,
+            };
         }
 
         /// <inheritdoc />
