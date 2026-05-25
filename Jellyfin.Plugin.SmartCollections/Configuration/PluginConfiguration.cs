@@ -1,73 +1,34 @@
-﻿using MediaBrowser.Model.Plugins;
+using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics.CodeAnalysis;
+using MediaBrowser.Model.Plugins;
 
 namespace Jellyfin.Plugin.SmartCollections.Configuration
 {
-    public enum TagMatchingMode
-    {
-        Or = 0,  // Default - match any tag (backward compatible)
-        And = 1  // Match all tags
-    }
-
-    public class TagTitlePair
-    {
-        public string Tag { get; set; }
-        public string Title { get; set; }
-        public TagMatchingMode MatchingMode { get; set; }
-
-        // Add parameterless constructor for XML serialization
-        public TagTitlePair()
-        {
-            Tag = string.Empty;
-            Title = "Smart Collection";
-            MatchingMode = TagMatchingMode.Or; // Default to OR for backward compatibility
-        }
-
-        public TagTitlePair(string tag, string title = null, TagMatchingMode matchingMode = TagMatchingMode.Or)
-        {
-            Tag = tag;
-            Title = title ?? GetDefaultTitle(tag);
-            MatchingMode = matchingMode;
-        }
-
-        private static string GetDefaultTitle(string tag)
-        {
-            if (string.IsNullOrEmpty(tag))
-                return "Smart Collection";
-                
-            // If there are multiple tags, use the first one for the default title
-            string firstTag = tag.Split(',')[0].Trim();
-            return firstTag.Length > 0
-                ? char.ToUpper(firstTag[0]) + firstTag[1..] + " Smart Collection"
-                : "Smart Collection";
-        }
-        
-        // Helper method to get individual tags as an array
-        public string[] GetTagsArray()
-        {
-            if (string.IsNullOrEmpty(Tag))
-                return new string[0];
-                
-            return Tag.Split(',')
-                .Select(t => t.Trim())
-                .Where(t => !string.IsNullOrEmpty(t))
-                .ToArray();
-        }
-    }
-
+    /// <summary>
+    /// Plugin configuration for Smart Collections.
+    /// </summary>
     public class PluginConfiguration : BasePluginConfiguration
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PluginConfiguration"/> class.
+        /// </summary>
         public PluginConfiguration()
         {
-            // Initialize with empty lists - defaults will be added by Plugin.cs only on first run
             TagTitlePairs = new List<TagTitlePair>();
-            Tags = new string[0];
+            Tags = Array.Empty<string>();
         }
 
+        /// <summary>
+        /// Gets or sets the list of tag-title pairs defining smart collections.
+        /// </summary>
+        [SuppressMessage("Usage", "CA2227:Change collection properties to read only", Justification = "Required for XML serialization")]
         public List<TagTitlePair> TagTitlePairs { get; set; }
-        
-        // Keep this for backward compatibility
+
+        /// <summary>
+        /// Gets or sets the legacy tags array (kept for backward compatibility).
+        /// </summary>
+        [SuppressMessage("Performance", "CA1819:Properties should not return arrays", Justification = "Required for XML serialization backward compatibility")]
         public string[] Tags { get; set; }
     }
 }

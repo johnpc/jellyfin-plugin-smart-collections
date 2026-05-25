@@ -345,3 +345,4 @@ healthchecksdb
 
 *.zip
 .qcontext
+coverage/

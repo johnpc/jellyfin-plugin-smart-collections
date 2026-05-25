@@ -1,0 +1,56 @@
+root = true
+
+[*]
+indent_style = space
+indent_size = 4
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.{csproj,props,targets,xml,json,yml,yaml}]
+indent_size = 2
+
+[*.cs]
+# Formatting
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_indent_case_contents = true
+csharp_indent_switch_labels = true
+csharp_space_after_cast = false
+csharp_space_after_keywords_in_control_flow_statements = true
+
+# Naming conventions — instance fields use _camelCase
+dotnet_naming_rule.private_instance_fields.severity = warning
+dotnet_naming_rule.private_instance_fields.symbols = private_instance_fields
+dotnet_naming_rule.private_instance_fields.style = camel_case_underscore
+
+dotnet_naming_symbols.private_instance_fields.applicable_kinds = field
+dotnet_naming_symbols.private_instance_fields.applicable_accessibilities = private
+dotnet_naming_symbols.private_instance_fields.required_modifiers =
+
+dotnet_naming_rule.private_static_fields.severity = warning
+dotnet_naming_rule.private_static_fields.symbols = private_static_fields
+dotnet_naming_rule.private_static_fields.style = pascal_case_style
+
+dotnet_naming_symbols.private_static_fields.applicable_kinds = field
+dotnet_naming_symbols.private_static_fields.applicable_accessibilities = private
+dotnet_naming_symbols.private_static_fields.required_modifiers = static
+
+dotnet_naming_style.camel_case_underscore.required_prefix = _
+dotnet_naming_style.camel_case_underscore.capitalization = camel_case
+
+dotnet_naming_style.pascal_case_style.capitalization = pascal_case
+
+# Code quality
+dotnet_diagnostic.CA1848.severity = suggestion
+dotnet_diagnostic.CA1062.severity = suggestion
+dotnet_diagnostic.CA1002.severity = suggestion
+dotnet_diagnostic.CA1724.severity = none
+dotnet_diagnostic.CS1591.severity = none
+
+# Obsolete/deprecated usage
+dotnet_diagnostic.CS0612.severity = error
+dotnet_diagnostic.CS0618.severity = error
