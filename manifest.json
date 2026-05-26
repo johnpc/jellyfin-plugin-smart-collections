@@ -8,12 +8,12 @@
     "category": "General",
     "versions": [
       {
-        "version": "0.0.0.21",
-        "changelog": "See the full changelog at [GitHub](https://github.com/johnpc/jellyfin-plugin-smart-collections/releases/tag/0.0.0.21)",
+        "version": "0.0.0.23",
+        "changelog": "See the full changelog at [GitHub](https://github.com/johnpc/jellyfin-plugin-smart-collections/releases/tag/0.0.0.23)",
         "targetAbi": "10.11.0.0",
-        "sourceUrl": "https://github.com/johnpc/jellyfin-plugin-smart-collections/releases/download/0.0.0.21/jellyfin-plugin-smart-collections-0.0.0.21.zip",
-        "checksum": "458a34ad4e6549e50c3768060ebc6ed6",
-        "timestamp": "2026-05-25T16:58:49Z"
+        "sourceUrl": "https://github.com/johnpc/jellyfin-plugin-smart-collections/releases/download/0.0.0.23/jellyfin-plugin-smart-collections-0.0.0.23.zip",
+        "checksum": "3024078f9ca7db65c54c03821d7ca07a",
+        "timestamp": "2026-05-26T12:50:39Z"
       }
     ]
   }
