@@ -85,7 +85,7 @@ jobs:
       run: |
         VERSION=${{ steps.get_version.outputs.VERSION }}
         mkdir -p release
-        find . -path "*/bin/Release/net9.0/*.dll" -exec cp {} release/ \;
+        cp Jellyfin.Plugin.SmartCollections/bin/Release/net9.0/Jellyfin.Plugin.SmartCollections.dll release/
         cd release
         zip -r ../jellyfin-plugin-smart-collections-${VERSION}.zip .
 
