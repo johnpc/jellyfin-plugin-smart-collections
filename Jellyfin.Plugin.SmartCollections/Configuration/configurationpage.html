@@ -2,41 +2,6 @@
 <html>
   <head>
     <title>Smart Collections</title>
-    <style>
-      .tag-title-container {
-        margin-bottom: 10px;
-        display: flex;
-        align-items: center;
-      }
-      .tag-input {
-        flex: 1;
-        margin-right: 10px;
-      }
-      .title-input {
-        flex: 1;
-        margin-right: 10px;
-      }
-      .matching-mode-select {
-        width: 80px;
-        margin-right: 10px;
-      }
-      .add-tag-button {
-        margin-bottom: 15px;
-      }
-      .remove-tag-button {
-        margin-left: 10px;
-        min-width: 40px;
-      }
-      #tag-title-pairs {
-        margin-bottom: 20px;
-      }
-      .help-text {
-        font-size: 0.9em;
-        color: #888;
-        margin-top: 5px;
-        margin-bottom: 15px;
-      }
-    </style>
   </head>
 
   <body>
@@ -45,6 +10,66 @@
       class="page type-interior pluginConfigurationPage tbsConfigurationPage"
       data-require="emby-input,emby-button,emby-select"
     >
+      <!-- Styles live inside the page element: Jellyfin only keeps this element when it loads the page -->
+      <style>
+        .collection {
+          margin-bottom: 16px;
+        }
+        .tag-title-container,
+        .condition-row {
+          margin-bottom: 10px;
+          display: flex;
+          align-items: center;
+        }
+        .condition-row {
+          margin-left: 24px;
+        }
+        .line-marker {
+          width: 70px;
+          margin-right: 10px;
+          color: #888;
+          white-space: nowrap;
+        }
+        .tag-input {
+          flex: 1;
+          margin-right: 10px;
+        }
+        .title-input {
+          flex: 1;
+          margin-right: 10px;
+        }
+        .matching-mode-select {
+          width: 80px;
+          margin-right: 10px;
+        }
+        /* With a filter line, commas on each line mean OR and the lines are joined by AND */
+        .collection.has-filter .tag-title-container .matching-mode-select,
+        .collection.has-filter .add-condition-button {
+          display: none;
+        }
+        .add-tag-button {
+          margin-bottom: 15px;
+        }
+        .remove-tag-button,
+        .add-condition-button {
+          margin-left: 10px;
+          min-width: 40px;
+        }
+        .condition-summary {
+          margin-left: 24px;
+          font-size: 0.85em;
+          color: #888;
+        }
+        #tag-title-pairs {
+          margin-bottom: 20px;
+        }
+        .help-text {
+          font-size: 0.9em;
+          color: #888;
+          margin-top: 5px;
+          margin-bottom: 15px;
+        }
+      </style>
       <div data-role="content">
         <div class="content-primary">
           <form class="tbsConfigurationPage">
@@ -62,9 +87,10 @@
               <div class="inputContainer">
                 <label class="inputLabel inputLabelUnfocused" for="tag-title-pairs">Tags and Collection Titles:</label>
                 <div class="help-text">For each collection, you can specify multiple tags separated by commas (e.g., "christmas, holiday, winter"). Choose "OR" to include items matching any tag, or "AND" to require items match all tags.</div>
+                <div class="help-text">Use the "+" button to add a filter line that narrows the collection down. Put the subject on the first line and the narrower type on the filter line: items must match both, and commas on either line mean OR. For example "music, band" filtered by "documentary" gives music documentaries, and "sports, hockey, football" filtered by "documentary" gives sports documentaries.</div>
                 <div id="tag-title-pairs"></div>
               </div>
-              
+
               <button
                 id="add-tag-button"
                 is="emby-button"
@@ -73,7 +99,7 @@
               >
                 <span>Add Collection</span>
               </button>
-              
+
               <br />
               <button
                 id="saveConfiguration"
@@ -98,59 +124,165 @@
       </div>
 
       <script type="text/javascript" defer>
-        function createTagTitlePairElement(tag = '', title = '', matchingMode = 0) {
-          const container = document.createElement('div');
-          container.className = 'tag-title-container';
-          
+        // A collection is its first line (tags + OR/AND) plus an optional filter line (the + button).
+        // With a filter line, items must match any tag on the first line AND any tag on the filter line.
+
+        // Jellyfin's API serializes enums as strings ("And"), so accept either form
+        function toMode(value) {
+          return (value === 1 || value === '1' || String(value).toLowerCase() === 'and') ? 1 : 0;
+        }
+
+        function createModeSelect(mode) {
+          const select = document.createElement('select');
+          select.is = 'emby-select';
+          select.className = 'matching-mode-select';
+          select.title = 'Match any (OR) or all (AND) of these tags';
+
+          const orOption = document.createElement('option');
+          orOption.value = '0';
+          orOption.textContent = 'OR';
+          orOption.selected = mode === 0;
+
+          const andOption = document.createElement('option');
+          andOption.value = '1';
+          andOption.textContent = 'AND';
+          andOption.selected = mode === 1;
+
+          select.appendChild(orOption);
+          select.appendChild(andOption);
+          return select;
+        }
+
+        function createTagInput(tag, placeholder) {
           const tagInput = document.createElement('input');
           tagInput.is = 'emby-input';
           tagInput.type = 'text';
           tagInput.className = 'tag-input';
-          tagInput.placeholder = 'Tags (comma separated)';
+          tagInput.placeholder = placeholder;
           tagInput.value = tag;
-          
+          return tagInput;
+        }
+
+        function createButton(className, text, title, onClick) {
+          const button = document.createElement('button');
+          button.is = 'emby-button';
+          button.type = 'button';
+          button.className = 'raised ' + className;
+          button.title = title;
+          button.innerHTML = '<span>' + text + '</span>';
+          button.onclick = onClick;
+          return button;
+        }
+
+        function splitTags(value) {
+          return value.split(',').map(t => t.trim()).filter(t => t);
+        }
+
+        function getFilterRow(collection) {
+          return collection.querySelector('.condition-row');
+        }
+
+        // Keeps the hidden dropdown / + button and the plain-English summary in sync
+        function refresh(collection) {
+          const filterRow = getFilterRow(collection);
+          collection.classList.toggle('has-filter', filterRow !== null);
+
+          const summary = collection.querySelector('.condition-summary');
+          summary.textContent = '';
+          if (!filterRow) {
+            return;
+          }
+
+          const tags = splitTags(collection.querySelector('.tag-title-container .tag-input').value);
+          const filterTags = splitTags(filterRow.querySelector('.tag-input').value);
+          if (tags.length === 0 || filterTags.length === 0) {
+            return;
+          }
+
+          const describe = list => list.map(t => '"' + t + '"').join(' or ');
+          summary.textContent = 'Includes items matching ' + describe(tags)
+            + ' that also match ' + describe(filterTags) + '.';
+        }
+
+        function addFilterRow(collection, filterTag = '') {
+          const row = document.createElement('div');
+          row.className = 'condition-row';
+
+          const marker = document.createElement('span');
+          marker.className = 'line-marker';
+          marker.textContent = '↳ AND';
+
+          const removeButton = createButton('remove-tag-button', 'X', 'Remove filter', function() {
+            row.remove();
+            refresh(collection);
+          });
+
+          row.appendChild(marker);
+          row.appendChild(createTagInput(filterTag, 'Filter tags (comma separated, any of)'));
+          row.appendChild(removeButton);
+          collection.querySelector('.conditions').appendChild(row);
+          refresh(collection);
+        }
+
+        function createTagTitlePairElement(tag = '', title = '', matchingMode = 0, filterTag = '') {
+          const collection = document.createElement('div');
+          collection.className = 'collection';
+
+          const container = document.createElement('div');
+          container.className = 'tag-title-container';
+
+          const tagInput = createTagInput(tag, 'Tags (comma separated)');
+
           const titleInput = document.createElement('input');
           titleInput.is = 'emby-input';
           titleInput.type = 'text';
           titleInput.className = 'title-input';
           titleInput.placeholder = 'Collection Title (optional)';
           titleInput.value = title;
-          
-          // Create matching mode dropdown
-          const matchingModeSelect = document.createElement('select');
-          matchingModeSelect.is = 'emby-select';
-          matchingModeSelect.className = 'matching-mode-select';
-          
-          const orOption = document.createElement('option');
-          orOption.value = '0';
-          orOption.textContent = 'OR';
-          orOption.selected = matchingMode === 0;
-          
-          const andOption = document.createElement('option');
-          andOption.value = '1';
-          andOption.textContent = 'AND';
-          andOption.selected = matchingMode === 1;
-          
-          matchingModeSelect.appendChild(orOption);
-          matchingModeSelect.appendChild(andOption);
-          
-          const removeButton = document.createElement('button');
-          removeButton.is = 'emby-button';
-          removeButton.type = 'button';
-          removeButton.className = 'raised remove-tag-button';
-          removeButton.innerHTML = '<span>X</span>';
-          removeButton.onclick = function() {
-            container.remove();
-          };
-          
+
+          const matchingModeSelect = createModeSelect(toMode(matchingMode));
+
+          const addConditionButton = createButton('add-condition-button', '+', 'Add filter line', function() {
+            // With a filter line, commas on the first line mean OR
+            if (toMode(matchingModeSelect.value) === 1 && splitTags(tagInput.value).length > 1) {
+              Dashboard.alert('A filter line treats the tags on each line as "any of". Switch this collection to OR first, '
+                + 'or move the tags that must all match onto the filter line.');
+              return;
+            }
+            matchingModeSelect.value = '0';
+            addFilterRow(collection);
+          });
+
+          const removeButton = createButton('remove-tag-button', 'X', 'Remove collection', function() {
+            collection.remove();
+          });
+
           container.appendChild(tagInput);
           container.appendChild(titleInput);
           container.appendChild(matchingModeSelect);
+          container.appendChild(addConditionButton);
           container.appendChild(removeButton);
-          
-          return container;
+
+          const conditionsContainer = document.createElement('div');
+          conditionsContainer.className = 'conditions';
+
+          const summary = document.createElement('div');
+          summary.className = 'condition-summary';
+
+          collection.appendChild(container);
+          collection.appendChild(conditionsContainer);
+          collection.appendChild(summary);
+
+          collection.addEventListener('input', () => refresh(collection));
+
+          if (filterTag) {
+            addFilterRow(collection, filterTag);
+          }
+
+          refresh(collection);
+          return collection;
         }
-        
+
         function loadConfig() {
           window.ApiClient.getPluginConfiguration(
             "09612e52-0f93-41ab-a6ab-5a19479f5315",
@@ -158,14 +290,14 @@
             .then(function (config) {
               const tagTitlePairsContainer = document.querySelector("#tag-title-pairs");
               tagTitlePairsContainer.innerHTML = '';
-              
+
               // Check if we have the TagTitlePairs property
               if (config.TagTitlePairs && config.TagTitlePairs.length > 0) {
                 config.TagTitlePairs.forEach(pair => {
-                  const element = createTagTitlePairElement(pair.Tag, pair.Title, pair.MatchingMode);
+                  const element = createTagTitlePairElement(pair.Tag, pair.Title, pair.MatchingMode, pair.FilterTag);
                   tagTitlePairsContainer.appendChild(element);
                 });
-              } 
+              }
               // Fallback to old Tags array for backward compatibility
               else if (config.Tags && config.Tags.length > 0) {
                 config.Tags.forEach(tag => {
@@ -186,48 +318,51 @@
               document.querySelector("#tag-title-pairs").appendChild(element);
             });
         }
-        
+
         function saveConfig() {
-          const tagTitleContainers = document.querySelectorAll('.tag-title-container');
+          const collections = document.querySelectorAll('.collection');
           const tagTitlePairs = [];
           const tags = [];
-          
-          tagTitleContainers.forEach(container => {
+
+          collections.forEach(collection => {
+            const container = collection.querySelector('.tag-title-container');
             const tagInput = container.querySelector('.tag-input');
             const titleInput = container.querySelector('.title-input');
             const matchingModeSelect = container.querySelector('.matching-mode-select');
-            
+            const filterRow = getFilterRow(collection);
+
             if (tagInput.value.trim()) {
               const tag = tagInput.value.trim();
               const title = titleInput.value.trim();
-              const matchingMode = parseInt(matchingModeSelect.value);
-              
+              const filterTag = filterRow ? filterRow.querySelector('.tag-input').value.trim() : '';
+
               tagTitlePairs.push({
                 Tag: tag,
                 Title: title || null, // Use null if title is empty
-                MatchingMode: matchingMode
+                MatchingMode: filterTag ? 0 : parseInt(matchingModeSelect.value),
+                FilterTag: filterTag
               });
-              
+
               tags.push(tag); // For backward compatibility
             }
           });
-          
+
           const config = {
             TagTitlePairs: tagTitlePairs,
             Tags: tags
           };
-          
+
           window.ApiClient.updatePluginConfiguration(
             "09612e52-0f93-41ab-a6ab-5a19479f5315",
             config,
           )
-            .then(() => alert("Update success"))
+            .then(() => Dashboard.alert("Settings saved."))
             .catch(function (error) {
               console.error(error);
-              alert("Error saving configuration");
+              Dashboard.alert("Error saving configuration");
             });
         }
-        
+
         function execute() {
           var request = {
             url: ApiClient.getUrl("/SmartCollections/SmartCollections"),
@@ -247,9 +382,14 @@
 
         // Initialize the page
         loadConfig();
-        
+
         // Add event listeners
-        document.querySelector("#saveConfiguration").addEventListener("click", saveConfig);
+        // Save is the form's submit button; stop the browser from reloading the page
+        document.querySelector("form.tbsConfigurationPage").addEventListener("submit", function(e) {
+          e.preventDefault();
+          saveConfig();
+          return false;
+        });
         document.querySelector("#add-tag-button").addEventListener("click", function() {
           const element = createTagTitlePairElement();
           document.querySelector("#tag-title-pairs").appendChild(element);

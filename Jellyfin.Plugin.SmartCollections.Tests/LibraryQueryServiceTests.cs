@@ -123,6 +123,29 @@ namespace Jellyfin.Plugin.SmartCollections.Tests
         }
 
         [Fact]
+        public void GetMoviesWithAndMatching_WithPerson_StillRequiresOtherTerms()
+        {
+            // Arrange
+            var person = CreatePerson("Tom Hanks");
+            var comedy = CreateMovie("The Money Pit");
+            var drama = CreateMovie("Philadelphia");
+
+            _libraryManager.GetItemList(Arg.Any<InternalItemsQuery>())
+                .Returns(new List<BaseItem>());
+            _libraryManager.GetItemList(Arg.Is<InternalItemsQuery>(q => q.Person == "Tom Hanks"))
+                .Returns(new List<BaseItem> { comedy, drama });
+            _libraryManager.GetItemList(Arg.Is<InternalItemsQuery>(q => q.Tags.Contains("comedy")))
+                .Returns(new List<BaseItem> { comedy });
+
+            // Act
+            var results = _sut.GetMoviesWithAndMatching(new[] { "tom hanks", "comedy" }, person).ToList();
+
+            // Assert
+            results.Should().Contain(comedy);
+            results.Should().NotContain(drama);
+        }
+
+        [Fact]
         public void GetSeriesWithAndMatching_EmptyTerms_ReturnsEmpty()
         {
             // Act

@@ -90,11 +90,18 @@ namespace Jellyfin.Plugin.SmartCollections.Services
                 return Enumerable.Empty<T>();
             }
 
-            var results = getter(terms[0], specificPerson).ToList();
+            // Only the term naming the person is resolved by person; every other
+            // term must still match by tag/genre, otherwise AND degrades to "all of this person's items".
+            Person? PersonFor(string term) =>
+                specificPerson != null && term.Equals(specificPerson.Name, StringComparison.OrdinalIgnoreCase)
+                    ? specificPerson
+                    : null;
+
+            var results = getter(terms[0], PersonFor(terms[0])).ToList();
 
             for (int i = 1; i < terms.Length && results.Count > 0; i++)
             {
-                var matchingIds = getter(terms[i], specificPerson)
+                var matchingIds = getter(terms[i], PersonFor(terms[i]))
                     .Select(m => m.Id)
                     .ToHashSet();
                 results = results.Where(item => matchingIds.Contains(item.Id)).ToList();

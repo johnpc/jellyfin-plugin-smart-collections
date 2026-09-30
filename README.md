@@ -37,6 +37,12 @@ The result after running the task is that a Collection is created for each Tag y
 
 1. To set it up, visit `Dashboard -> Plugins -> My Plugins -> Smart Collections -> Settings`
 1. Configure your tags that you want converted to Smart Collections as a comma-seperated list
+1. For each collection, pick a matching mode:
+    - **OR** (default): include items that match *any* of the tags (e.g. `christmas, holiday` → everything tagged christmas or holiday)
+    - **AND**: include only items that match *all* of the tags (e.g. `documentary, sports` → only sports documentaries). A term can also be a person's name (e.g. `Tom Hanks, comedy` → Tom Hanks comedies)
+1. For more control, use the **+** button on a collection to add a filter line that narrows it down. Put the subject on the first line and the narrower type on the filter line. Items must match the first line **and** the filter line, and commas on either line mean OR:
+    - `music, band, rock music` filtered by `documentary` = music documentaries
+    - `sports, hockey, football` filtered by `documentary, biography` = sports documentaries and biographies
 1. Choose "Save"
 1. Choose "Sync Smart Collections For Tags"
 1. Viola! Your Smart Collections now exist.

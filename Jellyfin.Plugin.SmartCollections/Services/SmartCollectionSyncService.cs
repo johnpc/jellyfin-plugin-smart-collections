@@ -147,7 +147,8 @@ namespace Jellyfin.Plugin.SmartCollections.Services
                 return;
             }
 
-            var (mediaItems, specificPerson) = ResolveMediaItems(tagTitlePair, tags);
+            var (mediaItems, specificPerson) = ResolveMediaItems(tagTitlePair.MatchingMode, tags);
+            mediaItems = ApplyFilter(tagTitlePair, mediaItems);
 
             await RemoveUnwantedItemsAsync(collection, mediaItems).ConfigureAwait(false);
             await AddWantedItemsAsync(collection, mediaItems).ConfigureAwait(false);
@@ -158,14 +159,28 @@ namespace Jellyfin.Plugin.SmartCollections.Services
             }
         }
 
+        private List<BaseItem> ApplyFilter(TagTitlePair tagTitlePair, List<BaseItem> mediaItems)
+        {
+            var filterTags = tagTitlePair.GetFilterTagsArray();
+            if (filterTags.Length == 0)
+            {
+                return mediaItems;
+            }
+
+            // Keep only items that also match at least one filter tag
+            var (filterItems, _) = ResolveMediaItems(TagMatchingMode.Or, filterTags);
+            var filterIds = filterItems.Select(item => item.Id).ToHashSet();
+            return mediaItems.Where(item => filterIds.Contains(item.Id)).ToList();
+        }
+
         private (List<BaseItem> MediaItems, Person? SpecificPerson) ResolveMediaItems(
-            TagTitlePair tagTitlePair,
+            TagMatchingMode matchingMode,
             string[] tags)
         {
             var allMovies = new List<Movie>();
             var allSeries = new List<Series>();
 
-            if (tagTitlePair.MatchingMode == TagMatchingMode.And)
+            if (matchingMode == TagMatchingMode.And)
             {
                 allMovies = _libraryQueryService.GetMoviesWithAndMatching(tags, null).ToList();
                 allSeries = _libraryQueryService.GetSeriesWithAndMatching(tags, null).ToList();
@@ -188,7 +203,7 @@ namespace Jellyfin.Plugin.SmartCollections.Services
                 specificPerson = FindPersonForTags(tags);
                 if (specificPerson != null)
                 {
-                    (allMovies, allSeries) = QueryByPerson(tagTitlePair, tags, specificPerson);
+                    (allMovies, allSeries) = QueryByPerson(matchingMode, tags, specificPerson);
                 }
             }
 
@@ -211,14 +226,14 @@ namespace Jellyfin.Plugin.SmartCollections.Services
         }
 
         private (List<Movie>, List<Series>) QueryByPerson(
-            TagTitlePair tagTitlePair,
+            TagMatchingMode matchingMode,
             string[] tags,
             Person person)
         {
             List<Movie> movies;
             List<Series> series;
 
-            if (tagTitlePair.MatchingMode == TagMatchingMode.And)
+            if (matchingMode == TagMatchingMode.And)
             {
                 movies = _libraryQueryService.GetMoviesWithAndMatching(tags, person).ToList();
                 series = _libraryQueryService.GetSeriesWithAndMatching(tags, person).ToList();

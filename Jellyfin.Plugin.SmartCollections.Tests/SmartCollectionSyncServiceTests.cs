@@ -565,6 +565,82 @@ namespace Jellyfin.Plugin.SmartCollections.Tests
                 Arg.Is<IEnumerable<Guid>>(ids => ids.Contains(wantedMovie.Id)));
         }
 
+        [Fact]
+        public async Task ExecuteAsync_WithFilterTag_KeepsOnlyItemsMatchingAFilterTag()
+        {
+            // Arrange: documentary, filtered to music or band
+            var pair = new TagTitlePair("documentary", "Music Docs") { FilterTag = "music, band" };
+            _configurationProvider.GetTagTitlePairs().Returns(new List<TagTitlePair> { pair });
+
+            var musicDoc = new Movie { Name = "Music Doc", Id = Guid.NewGuid() };
+            var bandDoc = new Movie { Name = "Band Doc", Id = Guid.NewGuid() };
+            var natureDoc = new Movie { Name = "Nature Doc", Id = Guid.NewGuid() };
+            var concertFilm = new Movie { Name = "Concert Film", Id = Guid.NewGuid() };
+
+            _libraryQueryService.GetMovies(Arg.Any<string>(), null).Returns(new List<Movie>());
+            _libraryQueryService.GetSeries(Arg.Any<string>(), null).Returns(new List<Series>());
+            _libraryQueryService.GetMovies("documentary", null).Returns(new List<Movie> { musicDoc, bandDoc, natureDoc });
+            _libraryQueryService.GetMovies("music", null).Returns(new List<Movie> { musicDoc, concertFilm });
+            _libraryQueryService.GetMovies("band", null).Returns(new List<Movie> { bandDoc });
+
+            _libraryManager.GetItemList(Arg.Any<InternalItemsQuery>())
+                .Returns(new List<BaseItem>());
+
+            var boxSet = CreateBoxSet("Music Docs");
+            _collectionManager.CreateCollectionAsync(Arg.Any<CollectionCreationOptions>())
+                .Returns(boxSet);
+            _libraryManager.UpdateItemAsync(
+                Arg.Any<BaseItem>(), Arg.Any<BaseItem>(), Arg.Any<ItemUpdateType>(), Arg.Any<CancellationToken>())
+                .Returns(Task.CompletedTask);
+            _collectionImageService.SetImageAsync(Arg.Any<BoxSet>(), Arg.Any<Person?>())
+                .Returns(Task.CompletedTask);
+
+            // Act
+            await _sut.ExecuteAsync();
+
+            // Assert
+            await _collectionManager.Received(1).AddToCollectionAsync(
+                boxSet.Id,
+                Arg.Is<IEnumerable<Guid>>(ids => ids.OrderBy(i => i).SequenceEqual(
+                    new[] { musicDoc.Id, bandDoc.Id }.OrderBy(i => i))));
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WithBlankFilterTag_IsIgnored()
+        {
+            // Arrange
+            var pair = new TagTitlePair("sports, football", "Sports") { FilterTag = " , " };
+            _configurationProvider.GetTagTitlePairs().Returns(new List<TagTitlePair> { pair });
+
+            var sportsDoc = new Movie { Name = "Sports Doc", Id = Guid.NewGuid() };
+            var footballMovie = new Movie { Name = "Football Movie", Id = Guid.NewGuid() };
+
+            _libraryQueryService.GetMovies(Arg.Any<string>(), null).Returns(new List<Movie>());
+            _libraryQueryService.GetSeries(Arg.Any<string>(), null).Returns(new List<Series>());
+            _libraryQueryService.GetMovies("sports", null).Returns(new List<Movie> { sportsDoc });
+            _libraryQueryService.GetMovies("football", null).Returns(new List<Movie> { footballMovie });
+
+            _libraryManager.GetItemList(Arg.Any<InternalItemsQuery>())
+                .Returns(new List<BaseItem>());
+
+            var boxSet = CreateBoxSet("Sports");
+            _collectionManager.CreateCollectionAsync(Arg.Any<CollectionCreationOptions>())
+                .Returns(boxSet);
+            _libraryManager.UpdateItemAsync(
+                Arg.Any<BaseItem>(), Arg.Any<BaseItem>(), Arg.Any<ItemUpdateType>(), Arg.Any<CancellationToken>())
+                .Returns(Task.CompletedTask);
+            _collectionImageService.SetImageAsync(Arg.Any<BoxSet>(), Arg.Any<Person?>())
+                .Returns(Task.CompletedTask);
+
+            // Act
+            await _sut.ExecuteAsync();
+
+            // Assert
+            await _collectionManager.Received(1).AddToCollectionAsync(
+                boxSet.Id,
+                Arg.Is<IEnumerable<Guid>>(ids => ids.Count() == 2));
+        }
+
         private static BoxSet CreateBoxSet(string name)
         {
             return new BoxSet
