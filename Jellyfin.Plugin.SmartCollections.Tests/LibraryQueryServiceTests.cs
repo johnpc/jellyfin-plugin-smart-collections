@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using FluentAssertions;
+using Jellyfin.Data.Enums;
 using Jellyfin.Plugin.SmartCollections.Services;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
@@ -156,6 +157,54 @@ namespace Jellyfin.Plugin.SmartCollections.Tests
         }
 
         [Fact]
+        public void GetEpisodes_ByTag_QueriesEpisodesByTagOnly()
+        {
+            // Arrange
+            var episode = CreateEpisode("A Very Special Christmas");
+            _libraryManager.GetItemList(Arg.Any<InternalItemsQuery>())
+                .Returns(new List<BaseItem> { episode });
+
+            // Act
+            var results = _sut.GetEpisodes("christmas").ToList();
+
+            // Assert
+            results.Should().ContainSingle().Which.Should().Be(episode);
+            _libraryManager.Received(1).GetItemList(Arg.Any<InternalItemsQuery>());
+            _libraryManager.Received(1).GetItemList(Arg.Is<InternalItemsQuery>(q =>
+                q.IncludeItemTypes.Single() == BaseItemKind.Episode &&
+                q.Tags.Single() == "christmas" &&
+                q.Genres.Count == 0));
+        }
+
+        [Fact]
+        public void GetEpisodesWithAndMatching_EmptyTerms_ReturnsEmpty()
+        {
+            // Act
+            var results = _sut.GetEpisodesWithAndMatching(Array.Empty<string>()).ToList();
+
+            // Assert
+            results.Should().BeEmpty();
+        }
+
+        [Fact]
+        public void GetEpisodesWithAndMatching_MultipleTerms_ReturnsIntersection()
+        {
+            // Arrange
+            var episodeBoth = CreateEpisode("Episode Both");
+            var episodeFirst = CreateEpisode("Episode First Only");
+            _libraryManager.GetItemList(Arg.Any<InternalItemsQuery>())
+                .Returns(
+                    new List<BaseItem> { episodeBoth, episodeFirst },
+                    new List<BaseItem> { episodeBoth });
+
+            // Act
+            var results = _sut.GetEpisodesWithAndMatching(new[] { "christmas", "comedy" }).ToList();
+
+            // Assert
+            results.Should().ContainSingle().Which.Should().Be(episodeBoth);
+        }
+
+        [Fact]
         public void FindPersonWithImage_PersonExists_ReturnsPerson()
         {
             // Arrange
@@ -211,6 +260,15 @@ namespace Jellyfin.Plugin.SmartCollections.Tests
         private static Series CreateSeries(string name)
         {
             return new Series
+            {
+                Name = name,
+                Id = Guid.NewGuid(),
+            };
+        }
+
+        private static Episode CreateEpisode(string name)
+        {
+            return new Episode
             {
                 Name = name,
                 Id = Guid.NewGuid(),

@@ -11,7 +11,7 @@ using MediaBrowser.Model.Entities;
 namespace Jellyfin.Plugin.SmartCollections.Services
 {
     /// <summary>
-    /// Queries the Jellyfin library for movies and series by tag, genre, or person.
+    /// Queries the Jellyfin library for movies, series, and episodes by tag, genre, or person.
     /// </summary>
     public class LibraryQueryService : ILibraryQueryService
     {
@@ -64,6 +64,18 @@ namespace Jellyfin.Plugin.SmartCollections.Services
         }
 
         /// <inheritdoc />
+        public IEnumerable<Episode> GetEpisodes(string term)
+        {
+            return GetItemsByTag<Episode>(BaseItemKind.Episode, term);
+        }
+
+        /// <inheritdoc />
+        public IEnumerable<Episode> GetEpisodesWithAndMatching(string[] terms)
+        {
+            return GetItemsWithAndMatching<Episode>(terms, null, (term, _) => GetEpisodes(term));
+        }
+
+        /// <inheritdoc />
         public Person? FindPersonWithImage(string name)
         {
             var personQuery = new InternalItemsQuery
@@ -110,16 +122,22 @@ namespace Jellyfin.Plugin.SmartCollections.Services
             return results;
         }
 
-        private IEnumerable<T> GetItemsByTagOrGenre<T>(BaseItemKind kind, string term)
+        private IEnumerable<T> GetItemsByTag<T>(BaseItemKind kind, string term)
             where T : BaseItem
         {
-            var byTags = _libraryManager.GetItemList(new InternalItemsQuery
+            return _libraryManager.GetItemList(new InternalItemsQuery
             {
                 IncludeItemTypes = new[] { kind },
                 IsVirtualItem = false,
                 Recursive = true,
                 Tags = new[] { term },
             }).OfType<T>();
+        }
+
+        private IEnumerable<T> GetItemsByTagOrGenre<T>(BaseItemKind kind, string term)
+            where T : BaseItem
+        {
+            var byTags = GetItemsByTag<T>(kind, term);
 
             var byGenres = _libraryManager.GetItemList(new InternalItemsQuery
             {

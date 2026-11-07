@@ -7,7 +7,7 @@ Jellyfin Smart Collections Plugin is a plugin that automatically creates Smart C
 
 ## What is it?
 
-You can configure Jellyfin Smart Collections Plugin with a list of Tags on movies and series in your Jellyfin server.
+You can configure Jellyfin Smart Collections Plugin with a list of Tags on movies, series, and individual episodes in your Jellyfin server.
 
 For example, "The Long Kiss Goodnight" gets a "christmas" tag applied when you fetch metadata
 
@@ -20,6 +20,8 @@ Now that you know that your movie has been tagged with "christmas", you can set 
 ![](https://files.jpc.io/d/Bha8r-Screenshot%202025-03-06%20at%205.29.44%E2%80%AFPM.png)
 
 The result after running the task is that a Collection is created for each Tag you configured in the plugin setup. All movies and series matching the tag are included in the Smart Collection. The Smart Collection is kept up to date any time the task runs, removing items that were un-tagged and adding items that were tagged since the last time the plugin ran.
+
+Individual episodes can be tagged too. For example, tag a show's holiday special with "christmas" and that single episode joins the Christmas collection, without pulling in the rest of the series. Episodes match on tags only (not genres or people), so a series' genres never flood a collection with every episode.
 
 ![](https://files.jpc.io/d/Bha8r-Screenshot%202025-03-06%20at%205.31.29%E2%80%AFPM.png)
 

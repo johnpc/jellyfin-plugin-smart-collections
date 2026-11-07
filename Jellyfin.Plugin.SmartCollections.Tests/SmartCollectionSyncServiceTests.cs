@@ -531,6 +531,74 @@ namespace Jellyfin.Plugin.SmartCollections.Tests
         }
 
         [Fact]
+        public async Task ExecuteAsync_WithTaggedEpisode_AddsEpisodeToCollection()
+        {
+            // Arrange
+            var pair = new TagTitlePair("christmas", "Christmas");
+            _configurationProvider.GetTagTitlePairs().Returns(new List<TagTitlePair> { pair });
+
+            var movie = new Movie { Name = "Elf", Id = Guid.NewGuid() };
+            var episode = new Episode { Name = "Christmas Party", Id = Guid.NewGuid() };
+            _libraryQueryService.GetMovies("christmas", null).Returns(new List<Movie> { movie });
+            _libraryQueryService.GetSeries("christmas", null).Returns(new List<Series>());
+            _libraryQueryService.GetEpisodes("christmas").Returns(new List<Episode> { episode });
+            var boxSet = SetUpNewCollection("Christmas");
+
+            // Act
+            await _sut.ExecuteAsync();
+
+            // Assert
+            await _collectionManager.Received(1).AddToCollectionAsync(
+                boxSet.Id,
+                Arg.Is<IReadOnlyList<Guid>>(ids =>
+                    ids.Count == 2 && ids.Contains(movie.Id) && ids.Contains(episode.Id)));
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_EpisodeMatchesMultipleOrTags_AddsEpisodeOnce()
+        {
+            // Arrange
+            var pair = new TagTitlePair("christmas,holiday", "Holidays");
+            _configurationProvider.GetTagTitlePairs().Returns(new List<TagTitlePair> { pair });
+
+            var episode = new Episode { Name = "Christmas Party", Id = Guid.NewGuid() };
+            _libraryQueryService.GetEpisodes("christmas").Returns(new List<Episode> { episode });
+            _libraryQueryService.GetEpisodes("holiday").Returns(new List<Episode> { episode });
+            var boxSet = SetUpNewCollection("Holidays");
+
+            // Act
+            await _sut.ExecuteAsync();
+
+            // Assert
+            await _collectionManager.Received(1).AddToCollectionAsync(
+                boxSet.Id,
+                Arg.Is<IReadOnlyList<Guid>>(ids => ids.Count == 1 && ids[0] == episode.Id));
+            _libraryQueryService.DidNotReceive().FindPersonWithImage(Arg.Any<string>());
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_AndMode_AddsEpisodesMatchingAllTags()
+        {
+            // Arrange
+            var pair = new TagTitlePair("christmas,comedy", "Christmas Comedy", TagMatchingMode.And);
+            _configurationProvider.GetTagTitlePairs().Returns(new List<TagTitlePair> { pair });
+
+            var episode = new Episode { Name = "Christmas Party", Id = Guid.NewGuid() };
+            _libraryQueryService.GetEpisodesWithAndMatching(
+                Arg.Is<string[]>(a => a.Length == 2 && a[0] == "christmas" && a[1] == "comedy"))
+                .Returns(new List<Episode> { episode });
+            var boxSet = SetUpNewCollection("Christmas Comedy");
+
+            // Act
+            await _sut.ExecuteAsync();
+
+            // Assert
+            await _collectionManager.Received(1).AddToCollectionAsync(
+                boxSet.Id,
+                Arg.Is<IReadOnlyList<Guid>>(ids => ids.Count == 1 && ids[0] == episode.Id));
+        }
+
+        [Fact]
         public async Task ExecuteAsync_ExistingCollectionWithStaleItem_RemovesStaleItem()
         {
             // Arrange
@@ -639,6 +707,21 @@ namespace Jellyfin.Plugin.SmartCollections.Tests
             await _collectionManager.Received(1).AddToCollectionAsync(
                 boxSet.Id,
                 Arg.Is<IEnumerable<Guid>>(ids => ids.Count() == 2));
+        }
+
+        private BoxSet SetUpNewCollection(string name)
+        {
+            _libraryManager.GetItemList(Arg.Any<InternalItemsQuery>())
+                .Returns(new List<BaseItem>());
+            var boxSet = CreateBoxSet(name);
+            _collectionManager.CreateCollectionAsync(Arg.Any<CollectionCreationOptions>())
+                .Returns(boxSet);
+            _libraryManager.UpdateItemAsync(
+                Arg.Any<BaseItem>(), Arg.Any<BaseItem>(), Arg.Any<ItemUpdateType>(), Arg.Any<CancellationToken>())
+                .Returns(Task.CompletedTask);
+            _collectionImageService.SetImageAsync(Arg.Any<BoxSet>(), Arg.Any<Person?>())
+                .Returns(Task.CompletedTask);
+            return boxSet;
         }
 
         private static BoxSet CreateBoxSet(string name)
