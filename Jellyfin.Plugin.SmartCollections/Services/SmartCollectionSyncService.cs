@@ -162,38 +162,37 @@ namespace Jellyfin.Plugin.SmartCollections.Services
             TagTitlePair tagTitlePair,
             string[] tags)
         {
-            var allMovies = new List<Movie>();
-            var allSeries = new List<Series>();
-
-            if (tagTitlePair.MatchingMode == TagMatchingMode.And)
-            {
-                allMovies = _libraryQueryService.GetMoviesWithAndMatching(tags, null).ToList();
-                allSeries = _libraryQueryService.GetSeriesWithAndMatching(tags, null).ToList();
-            }
-            else
-            {
-                foreach (var tag in tags)
-                {
-                    allMovies.AddRange(_libraryQueryService.GetMovies(tag, null));
-                    allSeries.AddRange(_libraryQueryService.GetSeries(tag, null));
-                }
-
-                allMovies = allMovies.DistinctBy(m => m.Id).ToList();
-                allSeries = allSeries.DistinctBy(s => s.Id).ToList();
-            }
+            var (allMovies, allSeries) = QueryMoviesAndSeries(tagTitlePair, tags, null);
+            var allEpisodes = QueryEpisodes(tagTitlePair, tags);
 
             Person? specificPerson = null;
-            if (allMovies.Count == 0 && allSeries.Count == 0)
+            if (allMovies.Count == 0 && allSeries.Count == 0 && allEpisodes.Count == 0)
             {
                 specificPerson = FindPersonForTags(tags);
                 if (specificPerson != null)
                 {
-                    (allMovies, allSeries) = QueryByPerson(tagTitlePair, tags, specificPerson);
+                    (allMovies, allSeries) = QueryMoviesAndSeries(tagTitlePair, tags, specificPerson);
                 }
             }
 
-            var mediaItems = allMovies.Cast<BaseItem>().Concat(allSeries.Cast<BaseItem>()).ToList();
+            var mediaItems = allMovies.Cast<BaseItem>()
+                .Concat(allSeries)
+                .Concat(allEpisodes)
+                .ToList();
             return (mediaItems, specificPerson);
+        }
+
+        private List<Episode> QueryEpisodes(TagTitlePair tagTitlePair, string[] tags)
+        {
+            if (tagTitlePair.MatchingMode == TagMatchingMode.And)
+            {
+                return _libraryQueryService.GetEpisodesWithAndMatching(tags).ToList();
+            }
+
+            return tags
+                .SelectMany(_libraryQueryService.GetEpisodes)
+                .DistinctBy(e => e.Id)
+                .ToList();
         }
 
         private Person? FindPersonForTags(string[] tags)
@@ -210,10 +209,10 @@ namespace Jellyfin.Plugin.SmartCollections.Services
             return null;
         }
 
-        private (List<Movie>, List<Series>) QueryByPerson(
+        private (List<Movie>, List<Series>) QueryMoviesAndSeries(
             TagTitlePair tagTitlePair,
             string[] tags,
-            Person person)
+            Person? person)
         {
             List<Movie> movies;
             List<Series> series;

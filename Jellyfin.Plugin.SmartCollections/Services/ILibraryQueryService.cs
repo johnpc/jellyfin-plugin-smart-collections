@@ -43,6 +43,21 @@ namespace Jellyfin.Plugin.SmartCollections.Services
         IEnumerable<Series> GetSeriesWithAndMatching(string[] terms, Person? specificPerson = null);
 
         /// <summary>
+        /// Gets episodes tagged with a single term. Episodes match by tag only,
+        /// so individual episodes (e.g. holiday specials) can join a collection.
+        /// </summary>
+        /// <param name="term">The tag to search.</param>
+        /// <returns>Matching episodes.</returns>
+        IEnumerable<Episode> GetEpisodes(string term);
+
+        /// <summary>
+        /// Gets episodes tagged with ALL given terms (AND logic).
+        /// </summary>
+        /// <param name="terms">Tags that must all match.</param>
+        /// <returns>Episodes matching all terms.</returns>
+        IEnumerable<Episode> GetEpisodesWithAndMatching(string[] terms);
+
+        /// <summary>
         /// Finds a person by name that has a primary image.
         /// </summary>
         /// <param name="name">The person name to search.</param>
