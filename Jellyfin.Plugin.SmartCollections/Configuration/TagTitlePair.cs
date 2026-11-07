@@ -18,6 +18,7 @@ namespace Jellyfin.Plugin.SmartCollections.Configuration
             Tag = string.Empty;
             Title = "Smart Collection";
             MatchingMode = TagMatchingMode.Or;
+            FilterTag = string.Empty;
         }
 
         /// <summary>
@@ -31,6 +32,7 @@ namespace Jellyfin.Plugin.SmartCollections.Configuration
             Tag = tag;
             Title = title ?? GetDefaultTitle(tag);
             MatchingMode = matchingMode;
+            FilterTag = string.Empty;
         }
 
         /// <summary>
@@ -49,17 +51,42 @@ namespace Jellyfin.Plugin.SmartCollections.Configuration
         public TagMatchingMode MatchingMode { get; set; }
 
         /// <summary>
+        /// Gets or sets optional comma-separated filter tags.
+        /// When set, items must also match at least one of these tags.
+        /// </summary>
+        public string FilterTag { get; set; }
+
+        /// <summary>
         /// Splits the comma-separated tag string into individual tags.
         /// </summary>
         /// <returns>An array of trimmed, non-empty tag strings.</returns>
         public string[] GetTagsArray()
         {
-            if (string.IsNullOrEmpty(Tag))
+            return SplitTags(Tag);
+        }
+
+        /// <summary>
+        /// Splits the comma-separated filter tag string into individual tags.
+        /// </summary>
+        /// <returns>An array of trimmed, non-empty filter tag strings.</returns>
+        public string[] GetFilterTagsArray()
+        {
+            return SplitTags(FilterTag);
+        }
+
+        /// <summary>
+        /// Splits a comma-separated tag string into individual tags.
+        /// </summary>
+        /// <param name="tag">The comma-separated tag string.</param>
+        /// <returns>An array of trimmed, non-empty tag strings.</returns>
+        private static string[] SplitTags(string? tag)
+        {
+            if (string.IsNullOrEmpty(tag))
             {
                 return Array.Empty<string>();
             }
 
-            return Tag.Split(',')
+            return tag.Split(',')
                 .Select(t => t.Trim())
                 .Where(t => !string.IsNullOrEmpty(t))
                 .ToArray();

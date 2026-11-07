@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Xml.Serialization;
 using FluentAssertions;
 using Jellyfin.Plugin.SmartCollections.Configuration;
 using Xunit;
@@ -20,6 +22,41 @@ namespace Jellyfin.Plugin.SmartCollections.Tests
             pair.Tag.Should().Be(string.Empty);
             pair.Title.Should().Be("Smart Collection");
             pair.MatchingMode.Should().Be(TagMatchingMode.Or);
+        }
+
+        [Fact]
+        public void PluginConfiguration_WithFilterTag_RoundTripsThroughXml()
+        {
+            // Arrange
+            var pair = new TagTitlePair("documentary", "Music Docs") { FilterTag = "music, band" };
+            var config = new PluginConfiguration();
+            config.TagTitlePairs.Add(pair);
+            var serializer = new XmlSerializer(typeof(PluginConfiguration));
+
+            // Act
+            using var writer = new StringWriter();
+            serializer.Serialize(writer, config);
+            using var reader = new StringReader(writer.ToString());
+            var result = (PluginConfiguration)serializer.Deserialize(reader)!;
+
+            // Assert
+            result.TagTitlePairs[0].GetFilterTagsArray().Should().Equal("music", "band");
+        }
+
+        [Fact]
+        public void PluginConfiguration_LegacyXmlWithoutFilterTag_HasNoFilterTags()
+        {
+            // Arrange
+            const string xml = "<PluginConfiguration><TagTitlePairs><TagTitlePair><Tag>christmas</Tag>"
+                + "<Title>Christmas</Title><MatchingMode>Or</MatchingMode></TagTitlePair></TagTitlePairs></PluginConfiguration>";
+            var serializer = new XmlSerializer(typeof(PluginConfiguration));
+
+            // Act
+            using var reader = new StringReader(xml);
+            var result = (PluginConfiguration)serializer.Deserialize(reader)!;
+
+            // Assert
+            result.TagTitlePairs[0].GetFilterTagsArray().Should().BeEmpty();
         }
 
         [Fact]
