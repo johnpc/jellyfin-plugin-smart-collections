@@ -11,17 +11,17 @@ namespace Jellyfin.Plugin.SmartCollections.Services
     public interface ILibraryQueryService
     {
         /// <summary>
-        /// Gets movies matching a single term (tag/genre or person).
+        /// Gets movies matching a single term (tag/genre, decade such as <c>1980s</c>, or person).
         /// </summary>
-        /// <param name="term">The tag, genre, or person name to search.</param>
+        /// <param name="term">The tag, genre, decade, or person name to search.</param>
         /// <param name="specificPerson">Optional person to search by actor/director.</param>
         /// <returns>Matching movies.</returns>
         IEnumerable<Movie> GetMovies(string term, Person? specificPerson = null);
 
         /// <summary>
-        /// Gets series matching a single term (tag/genre or person).
+        /// Gets series matching a single term (tag/genre, decade such as <c>1980s</c>, or person).
         /// </summary>
-        /// <param name="term">The tag, genre, or person name to search.</param>
+        /// <param name="term">The tag, genre, decade, or person name to search.</param>
         /// <param name="specificPerson">Optional person to search by actor/director.</param>
         /// <returns>Matching series.</returns>
         IEnumerable<Series> GetSeries(string term, Person? specificPerson = null);

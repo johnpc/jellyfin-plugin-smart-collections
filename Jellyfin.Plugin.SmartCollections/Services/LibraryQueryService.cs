@@ -11,7 +11,7 @@ using MediaBrowser.Model.Entities;
 namespace Jellyfin.Plugin.SmartCollections.Services
 {
     /// <summary>
-    /// Queries the Jellyfin library for movies, series, and episodes by tag, genre, or person.
+    /// Queries the Jellyfin library for movies, series, and episodes by tag, genre, decade, or person.
     /// </summary>
     public class LibraryQueryService : ILibraryQueryService
     {
@@ -37,7 +37,7 @@ namespace Jellyfin.Plugin.SmartCollections.Services
                 return GetItemsByPerson<Movie>(BaseItemKind.Movie, specificPerson.Name);
             }
 
-            return GetItemsByTagOrGenre<Movie>(BaseItemKind.Movie, term);
+            return GetItemsByTagGenreOrDecade<Movie>(BaseItemKind.Movie, term);
         }
 
         /// <inheritdoc />
@@ -48,7 +48,7 @@ namespace Jellyfin.Plugin.SmartCollections.Services
                 return GetItemsByPerson<Series>(BaseItemKind.Series, specificPerson.Name);
             }
 
-            return GetItemsByTagOrGenre<Series>(BaseItemKind.Series, term);
+            return GetItemsByTagGenreOrDecade<Series>(BaseItemKind.Series, term);
         }
 
         /// <inheritdoc />
@@ -134,9 +134,22 @@ namespace Jellyfin.Plugin.SmartCollections.Services
             }).OfType<T>();
         }
 
-        private IEnumerable<T> GetItemsByTagOrGenre<T>(BaseItemKind kind, string term)
+        private IEnumerable<T> GetItemsByTagGenreOrDecade<T>(BaseItemKind kind, string term)
             where T : BaseItem
         {
+            // A decade term (e.g. "1980s") matches by production year instead of tag/genre.
+            // Episodes deliberately skip this and keep matching on tags only.
+            if (DecadeTerm.TryParse(term, out var years))
+            {
+                return _libraryManager.GetItemList(new InternalItemsQuery
+                {
+                    IncludeItemTypes = new[] { kind },
+                    IsVirtualItem = false,
+                    Recursive = true,
+                    Years = years,
+                }).OfType<T>();
+            }
+
             var byTags = GetItemsByTag<T>(kind, term);
 
             var byGenres = _libraryManager.GetItemList(new InternalItemsQuery

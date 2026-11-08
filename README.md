@@ -42,9 +42,14 @@ Individual episodes can be tagged too. For example, tag a show's holiday special
 1. For each collection, pick a matching mode:
     - **OR** (default): include items that match *any* of the tags (e.g. `christmas, holiday` → everything tagged christmas or holiday)
     - **AND**: include only items that match *all* of the tags (e.g. `documentary, sports` → only sports documentaries). A term can also be a person's name (e.g. `Tom Hanks, comedy` → Tom Hanks comedies)
+1. A term can also be a decade, matched against each movie's or series' production year. Write it as `1980s`, `80s` (`30s`-`90s` mean the 1900s, `00s`-`20s` the 2000s) or an explicit range like `1980-1989`. Episodes still match on tags only, so a decade never pulls in every episode of a series:
+    - `80s` → every movie and series from 1980-1989
+    - `2000s, 2010s` (OR) → everything from 2000-2019
+    - `1980s, horror` (AND) → 80s horror
 1. For more control, use the **+** button on a collection to add a filter line that narrows it down. Put the subject on the first line and the narrower type on the filter line. Items must match the first line **and** the filter line, and commas on either line mean OR:
     - `music, band, rock music` filtered by `documentary` = music documentaries
     - `sports, hockey, football` filtered by `documentary, biography` = sports documentaries and biographies
+    - `1980s` filtered by `horror` = 80s horror movies and series
 1. Choose "Save"
 1. Choose "Sync Smart Collections For Tags"
 1. Viola! Your Smart Collections now exist.

@@ -674,6 +674,33 @@ namespace Jellyfin.Plugin.SmartCollections.Tests
         }
 
         [Fact]
+        public async Task ExecuteAsync_DecadeTerms_OrMode_UnionsDecadesAndAppliesFilter()
+        {
+            // Arrange
+            var pair = new TagTitlePair("2000s, 2010s", "Modern Horror") { FilterTag = "horror" };
+            _configurationProvider.GetTagTitlePairs().Returns(new List<TagTitlePair> { pair });
+
+            var saw = new Movie { Name = "Saw", Id = Guid.NewGuid() };
+            var getOut = new Movie { Name = "Get Out", Id = Guid.NewGuid() };
+            var avatar = new Movie { Name = "Avatar", Id = Guid.NewGuid() };
+            _libraryQueryService.GetMovies("2000s", null).Returns(new List<Movie> { saw, avatar });
+            _libraryQueryService.GetMovies("2010s", null).Returns(new List<Movie> { getOut });
+            _libraryQueryService.GetMovies("horror", null).Returns(new List<Movie> { saw, getOut });
+
+            _libraryManager.GetItemList(Arg.Any<InternalItemsQuery>()).Returns(new List<BaseItem>());
+            var boxSet = CreateBoxSet("Modern Horror");
+            _collectionManager.CreateCollectionAsync(Arg.Any<CollectionCreationOptions>()).Returns(boxSet);
+
+            // Act
+            await _sut.ExecuteAsync();
+
+            // Assert
+            await _collectionManager.Received(1).AddToCollectionAsync(
+                boxSet.Id,
+                Arg.Is<IReadOnlyList<Guid>>(ids => ids.Count == 2 && ids.Contains(saw.Id) && ids.Contains(getOut.Id)));
+        }
+
+        [Fact]
         public async Task ExecuteAsync_WithBlankFilterTag_IsIgnored()
         {
             // Arrange
