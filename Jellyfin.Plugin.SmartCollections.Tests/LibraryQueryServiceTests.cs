@@ -235,6 +235,100 @@ namespace Jellyfin.Plugin.SmartCollections.Tests
         }
 
         [Fact]
+        public void GetMovies_DecadeTerm_QueriesByProductionYearsOnly()
+        {
+            // Arrange
+            var movie = CreateMovie("Back to the Future");
+            _libraryManager.GetItemList(Arg.Any<InternalItemsQuery>())
+                .Returns(new List<BaseItem> { movie });
+
+            // Act
+            var results = _sut.GetMovies("1980s").ToList();
+
+            // Assert
+            results.Should().ContainSingle().Which.Should().Be(movie);
+            _libraryManager.Received(1).GetItemList(Arg.Any<InternalItemsQuery>());
+            _libraryManager.Received(1).GetItemList(Arg.Is<InternalItemsQuery>(q =>
+                q.IncludeItemTypes.Single() == BaseItemKind.Movie &&
+                q.Years.SequenceEqual(Enumerable.Range(1980, 10)) &&
+                q.Tags.Length == 0 &&
+                q.Genres.Count == 0));
+        }
+
+        [Fact]
+        public void GetSeries_ShortDecadeTerm_QueriesByProductionYears()
+        {
+            // Arrange
+            var series = CreateSeries("Cheers");
+            _libraryManager.GetItemList(Arg.Any<InternalItemsQuery>())
+                .Returns(new List<BaseItem> { series });
+
+            // Act
+            var results = _sut.GetSeries("80s").ToList();
+
+            // Assert
+            results.Should().ContainSingle().Which.Should().Be(series);
+            _libraryManager.Received(1).GetItemList(Arg.Is<InternalItemsQuery>(q =>
+                q.IncludeItemTypes.Single() == BaseItemKind.Series &&
+                q.Years.SequenceEqual(Enumerable.Range(1980, 10))));
+        }
+
+        [Fact]
+        public void GetMovies_DecadeTerm_WithPerson_StillQueriesByPerson()
+        {
+            // Arrange
+            var movie = CreateMovie("Big");
+            var person = CreatePerson("Tom Hanks");
+            _libraryManager.GetItemList(Arg.Any<InternalItemsQuery>())
+                .Returns(new List<BaseItem> { movie });
+
+            // Act
+            var results = _sut.GetMovies("1980s", person).ToList();
+
+            // Assert
+            results.Should().Contain(movie);
+            _libraryManager.DidNotReceive().GetItemList(Arg.Is<InternalItemsQuery>(q => q.Years.Length > 0));
+        }
+
+        [Fact]
+        public void GetMoviesWithAndMatching_DecadeAndTag_ReturnsIntersection()
+        {
+            // Arrange
+            var eightiesHorror = CreateMovie("The Thing");
+            var eightiesComedy = CreateMovie("Ghostbusters");
+            var modernHorror = CreateMovie("Hereditary");
+            _libraryManager.GetItemList(Arg.Any<InternalItemsQuery>())
+                .Returns(new List<BaseItem>());
+            _libraryManager.GetItemList(Arg.Is<InternalItemsQuery>(q => q.Years.Length > 0))
+                .Returns(new List<BaseItem> { eightiesHorror, eightiesComedy });
+            _libraryManager.GetItemList(Arg.Is<InternalItemsQuery>(q => q.Genres.Contains("horror")))
+                .Returns(new List<BaseItem> { eightiesHorror, modernHorror });
+
+            // Act
+            var results = _sut.GetMoviesWithAndMatching(new[] { "1980s", "horror" }).ToList();
+
+            // Assert
+            results.Should().ContainSingle().Which.Should().Be(eightiesHorror);
+        }
+
+        [Fact]
+        public void GetEpisodes_DecadeTerm_StillQueriesByTagOnly()
+        {
+            // Arrange
+            _libraryManager.GetItemList(Arg.Any<InternalItemsQuery>())
+                .Returns(new List<BaseItem>());
+
+            // Act
+            var results = _sut.GetEpisodes("1980s").ToList();
+
+            // Assert
+            results.Should().BeEmpty();
+            _libraryManager.Received(1).GetItemList(Arg.Is<InternalItemsQuery>(q =>
+                q.Tags.Single() == "1980s" &&
+                q.Years.Length == 0));
+        }
+
+        [Fact]
         public void GetMovies_NoResults_ReturnsEmpty()
         {
             // Arrange
