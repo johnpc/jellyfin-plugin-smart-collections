@@ -149,6 +149,7 @@ namespace Jellyfin.Plugin.SmartCollections.Services
 
             var (mediaItems, specificPerson) = ResolveMediaItems(tagTitlePair.MatchingMode, tags);
             mediaItems = ApplyFilter(tagTitlePair, mediaItems);
+            mediaItems = ApplyExclusions(tagTitlePair, mediaItems);
 
             await RemoveUnwantedItemsAsync(collection, mediaItems).ConfigureAwait(false);
             await AddWantedItemsAsync(collection, mediaItems).ConfigureAwait(false);
@@ -171,6 +172,20 @@ namespace Jellyfin.Plugin.SmartCollections.Services
             var (filterItems, _) = ResolveMediaItems(TagMatchingMode.Or, filterTags);
             var filterIds = filterItems.Select(item => item.Id).ToHashSet();
             return mediaItems.Where(item => filterIds.Contains(item.Id)).ToList();
+        }
+
+        private List<BaseItem> ApplyExclusions(TagTitlePair tagTitlePair, List<BaseItem> mediaItems)
+        {
+            var excludedTags = tagTitlePair.GetExcludedTagsArray();
+            if (excludedTags.Length == 0 || mediaItems.Count == 0)
+            {
+                return mediaItems;
+            }
+
+            // Drop any item that carries at least one excluded tag, regardless of matching mode
+            var (excludedItems, _) = ResolveMediaItems(TagMatchingMode.Or, excludedTags);
+            var excludedIds = excludedItems.Select(item => item.Id).ToHashSet();
+            return mediaItems.Where(item => !excludedIds.Contains(item.Id)).ToList();
         }
 
         private (List<BaseItem> MediaItems, Person? SpecificPerson) ResolveMediaItems(
