@@ -21,7 +21,7 @@ Now that you know that your movie has been tagged with "christmas", you can set 
 
 The result after running the task is that a Collection is created for each Tag you configured in the plugin setup. All movies and series matching the tag are included in the Smart Collection. The Smart Collection is kept up to date any time the task runs, removing items that were un-tagged and adding items that were tagged since the last time the plugin ran.
 
-Individual episodes can be tagged too. For example, tag a show's holiday special with "christmas" and that single episode joins the Christmas collection, without pulling in the rest of the series. Episodes match on tags only (not genres or people), so a series' genres never flood a collection with every episode.
+Individual episodes can be tagged too. For example, tag a show's holiday special with "christmas" and that single episode joins the Christmas collection, without pulling in the rest of the series. Episodes match on tags only (not genres, studios, or people), so a series' genres never flood a collection with every episode.
 
 ![](https://files.jpc.io/d/Bha8r-Screenshot%202025-03-06%20at%205.31.29%E2%80%AFPM.png)
 
@@ -42,6 +42,7 @@ Individual episodes can be tagged too. For example, tag a show's holiday special
 1. For each collection, pick a matching mode:
     - **OR** (default): include items that match *any* of the tags (e.g. `christmas, holiday` → everything tagged christmas or holiday)
     - **AND**: include only items that match *all* of the tags (e.g. `documentary, sports` → only sports documentaries). A term can also be a person's name (e.g. `Tom Hanks, comedy` → Tom Hanks comedies)
+1. A term matches an item's tags, genres, or studios, so no extra tagging is needed to collect by network or studio (e.g. `Netflix` → every movie and series whose Studios include Netflix; `Netflix, comedy` with **AND** → Netflix comedies). Episodes still match on tags only.
 1. For more control, use the **+** button on a collection to add a filter line that narrows it down. Put the subject on the first line and the narrower type on the filter line. Items must match the first line **and** the filter line, and commas on either line mean OR:
     - `music, band, rock music` filtered by `documentary` = music documentaries
     - `sports, hockey, football` filtered by `documentary, biography` = sports documentaries and biographies
