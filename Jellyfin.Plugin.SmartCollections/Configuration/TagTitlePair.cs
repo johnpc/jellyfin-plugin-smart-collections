@@ -37,6 +37,7 @@ namespace Jellyfin.Plugin.SmartCollections.Configuration
 
         /// <summary>
         /// Gets or sets the tag or comma-separated tags.
+        /// A tag prefixed with <c>!</c> (e.g. <c>!anime</c>) excludes items carrying it.
         /// </summary>
         public string Tag { get; set; }
 
@@ -57,21 +58,43 @@ namespace Jellyfin.Plugin.SmartCollections.Configuration
         public string FilterTag { get; set; }
 
         /// <summary>
-        /// Splits the comma-separated tag string into individual tags.
+        /// Splits the comma-separated tag string into individual tags to include.
+        /// Tags prefixed with <c>!</c> are exclusions and are not returned here.
         /// </summary>
         /// <returns>An array of trimmed, non-empty tag strings.</returns>
         public string[] GetTagsArray()
         {
-            return SplitTags(Tag);
+            return SplitTags(Tag).Where(t => !IsExclusion(t)).ToArray();
         }
 
         /// <summary>
-        /// Splits the comma-separated filter tag string into individual tags.
+        /// Splits the comma-separated filter tag string into individual tags to include.
+        /// Tags prefixed with <c>!</c> are exclusions and are not returned here.
         /// </summary>
         /// <returns>An array of trimmed, non-empty filter tag strings.</returns>
         public string[] GetFilterTagsArray()
         {
-            return SplitTags(FilterTag);
+            return SplitTags(FilterTag).Where(t => !IsExclusion(t)).ToArray();
+        }
+
+        /// <summary>
+        /// Gets the tags prefixed with <c>!</c> on either the tag line or the filter line.
+        /// Items carrying any of these tags are removed from the collection.
+        /// </summary>
+        /// <returns>An array of trimmed, non-empty excluded tag strings without the <c>!</c> prefix.</returns>
+        public string[] GetExcludedTagsArray()
+        {
+            return SplitTags(Tag)
+                .Concat(SplitTags(FilterTag))
+                .Where(IsExclusion)
+                .Select(t => t[1..].Trim())
+                .Where(t => !string.IsNullOrEmpty(t))
+                .ToArray();
+        }
+
+        private static bool IsExclusion(string tag)
+        {
+            return tag.StartsWith('!');
         }
 
         /// <summary>
@@ -99,7 +122,10 @@ namespace Jellyfin.Plugin.SmartCollections.Configuration
                 return "Smart Collection";
             }
 
-            string firstTag = tag.Split(',')[0].Trim();
+            // Title after the first included tag, skipping any !excluded ones
+            string firstTag = tag.Split(',')
+                .Select(t => t.Trim())
+                .FirstOrDefault(t => !IsExclusion(t)) ?? string.Empty;
             return firstTag.Length > 0
                 ? char.ToUpper(firstTag[0], CultureInfo.InvariantCulture) + firstTag[1..] + " Smart Collection"
                 : "Smart Collection";

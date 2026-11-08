@@ -50,6 +50,9 @@ Individual episodes can be tagged too. For example, tag a show's holiday special
     - `music, band, rock music` filtered by `documentary` = music documentaries
     - `sports, hockey, football` filtered by `documentary, biography` = sports documentaries and biographies
     - `1980s` filtered by `horror` = 80s horror movies and series
+1. To keep items out of a collection, prefix a tag with `!`. Items carrying any excluded tag are removed, whatever the matching mode (works on the filter line too):
+    - `adult animation, !anime` (AND) = adult animation that is not anime
+    - `samurai, !family, !animation` = samurai titles that are neither family nor animation
 1. Choose "Save"
 1. Choose "Sync Smart Collections For Tags"
 1. Viola! Your Smart Collections now exist.
