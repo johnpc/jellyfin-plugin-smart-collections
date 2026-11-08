@@ -147,6 +147,83 @@ namespace Jellyfin.Plugin.SmartCollections.Tests
         }
 
         [Fact]
+        public void GetTagsArray_ExcludedTags_AreOmitted()
+        {
+            // Arrange
+            var pair = new TagTitlePair("samurai, !family, !animation");
+
+            // Act
+            var result = pair.GetTagsArray();
+
+            // Assert
+            result.Should().Equal("samurai");
+        }
+
+        [Fact]
+        public void GetExcludedTagsArray_ReturnsTagsFromBothLinesWithoutPrefix()
+        {
+            // Arrange
+            var pair = new TagTitlePair("adult animation, !anime", "Adult Animation", TagMatchingMode.And)
+            {
+                FilterTag = "comedy, ! sitcom",
+            };
+
+            // Act
+            var result = pair.GetExcludedTagsArray();
+
+            // Assert
+            result.Should().Equal("anime", "sitcom");
+            pair.GetFilterTagsArray().Should().Equal("comedy");
+        }
+
+        [Fact]
+        public void GetExcludedTagsArray_NoExclusions_ReturnsEmptyArray()
+        {
+            // Arrange
+            var pair = new TagTitlePair("action, comedy") { FilterTag = "documentary" };
+
+            // Act
+            var result = pair.GetExcludedTagsArray();
+
+            // Assert
+            result.Should().BeEmpty();
+        }
+
+        [Fact]
+        public void GetExcludedTagsArray_BarePrefix_IsIgnored()
+        {
+            // Arrange
+            var pair = new TagTitlePair("action, !, ! ");
+
+            // Act
+            var result = pair.GetExcludedTagsArray();
+
+            // Assert
+            result.Should().BeEmpty();
+            pair.GetTagsArray().Should().Equal("action");
+        }
+
+        [Fact]
+        public void TagTitlePair_LeadingExcludedTag_DefaultTitleUsesFirstIncludedTag()
+        {
+            // Act
+            var pair = new TagTitlePair("!anime, adult animation");
+
+            // Assert
+            pair.Title.Should().Be("Adult animation Smart Collection");
+        }
+
+        [Fact]
+        public void TagTitlePair_OnlyExcludedTags_DefaultTitleFallsBack()
+        {
+            // Act
+            var pair = new TagTitlePair("!anime");
+
+            // Assert
+            pair.Title.Should().Be("Smart Collection");
+        }
+
+        [Fact]
         public void PluginConfiguration_DefaultConstructor_InitializesEmptyCollections()
         {
             // Act
