@@ -709,6 +709,116 @@ namespace Jellyfin.Plugin.SmartCollections.Tests
                 Arg.Is<IEnumerable<Guid>>(ids => ids.Count() == 2));
         }
 
+        [Fact]
+        public async Task ExecuteAsync_WithExcludedTag_OrMode_RemovesItemsCarryingExcludedTag()
+        {
+            // Arrange: samurai or ronin, but never family or animation
+            var pair = new TagTitlePair("samurai, ronin, !family, !animation", "Samurai");
+            _configurationProvider.GetTagTitlePairs().Returns(new List<TagTitlePair> { pair });
+
+            var sevenSamurai = new Movie { Name = "Seven Samurai", Id = Guid.NewGuid() };
+            var roninFilm = new Movie { Name = "Ronin", Id = Guid.NewGuid() };
+            var kidsSamurai = new Movie { Name = "Kids Samurai", Id = Guid.NewGuid() };
+            var animatedSamurai = new Series { Name = "Animated Samurai", Id = Guid.NewGuid() };
+            var unrelatedCartoon = new Movie { Name = "Unrelated Cartoon", Id = Guid.NewGuid() };
+
+            _libraryQueryService.GetMovies(Arg.Any<string>(), null).Returns(new List<Movie>());
+            _libraryQueryService.GetSeries(Arg.Any<string>(), null).Returns(new List<Series>());
+            _libraryQueryService.GetMovies("samurai", null).Returns(new List<Movie> { sevenSamurai, kidsSamurai });
+            _libraryQueryService.GetSeries("samurai", null).Returns(new List<Series> { animatedSamurai });
+            _libraryQueryService.GetMovies("ronin", null).Returns(new List<Movie> { roninFilm });
+            _libraryQueryService.GetMovies("family", null).Returns(new List<Movie> { kidsSamurai });
+            _libraryQueryService.GetMovies("animation", null).Returns(new List<Movie> { unrelatedCartoon });
+            _libraryQueryService.GetSeries("animation", null).Returns(new List<Series> { animatedSamurai });
+            var boxSet = SetUpNewCollection("Samurai");
+
+            // Act
+            await _sut.ExecuteAsync();
+
+            // Assert
+            await _collectionManager.Received(1).AddToCollectionAsync(
+                boxSet.Id,
+                Arg.Is<IEnumerable<Guid>>(ids => ids.OrderBy(i => i).SequenceEqual(
+                    new[] { sevenSamurai.Id, roninFilm.Id }.OrderBy(i => i))));
+            _libraryQueryService.DidNotReceive().GetMovies("!family", null);
+            _libraryQueryService.DidNotReceive().GetMovies("!animation", null);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WithExcludedTag_AndMode_RemovesItemsCarryingExcludedTag()
+        {
+            // Arrange: adult animation that is not anime; the excluded tag must not join the AND terms
+            var pair = new TagTitlePair("adult animation, !anime", "Adult Animation", TagMatchingMode.And);
+            _configurationProvider.GetTagTitlePairs().Returns(new List<TagTitlePair> { pair });
+
+            var archer = new Series { Name = "Archer", Id = Guid.NewGuid() };
+            var cowboyBebop = new Series { Name = "Cowboy Bebop", Id = Guid.NewGuid() };
+
+            _libraryQueryService.GetMoviesWithAndMatching(Arg.Any<string[]>(), null).Returns(new List<Movie>());
+            _libraryQueryService.GetSeriesWithAndMatching(
+                Arg.Is<string[]>(a => a.Length == 1 && a[0] == "adult animation"), null)
+                .Returns(new List<Series> { archer, cowboyBebop });
+            _libraryQueryService.GetMovies(Arg.Any<string>(), null).Returns(new List<Movie>());
+            _libraryQueryService.GetSeries(Arg.Any<string>(), null).Returns(new List<Series>());
+            _libraryQueryService.GetSeries("anime", null).Returns(new List<Series> { cowboyBebop });
+            var boxSet = SetUpNewCollection("Adult Animation");
+
+            // Act
+            await _sut.ExecuteAsync();
+
+            // Assert
+            await _collectionManager.Received(1).AddToCollectionAsync(
+                boxSet.Id,
+                Arg.Is<IEnumerable<Guid>>(ids => ids.SequenceEqual(new[] { archer.Id })));
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WithExcludedTagOnFilterLine_RemovesItemsCarryingExcludedTag()
+        {
+            // Arrange: documentaries about music, but not concert films
+            var pair = new TagTitlePair("documentary", "Music Docs") { FilterTag = "music, !concert" };
+            _configurationProvider.GetTagTitlePairs().Returns(new List<TagTitlePair> { pair });
+
+            var musicDoc = new Movie { Name = "Music Doc", Id = Guid.NewGuid() };
+            var concertDoc = new Movie { Name = "Concert Doc", Id = Guid.NewGuid() };
+            var natureDoc = new Movie { Name = "Nature Doc", Id = Guid.NewGuid() };
+
+            _libraryQueryService.GetMovies(Arg.Any<string>(), null).Returns(new List<Movie>());
+            _libraryQueryService.GetSeries(Arg.Any<string>(), null).Returns(new List<Series>());
+            _libraryQueryService.GetMovies("documentary", null).Returns(new List<Movie> { musicDoc, concertDoc, natureDoc });
+            _libraryQueryService.GetMovies("music", null).Returns(new List<Movie> { musicDoc, concertDoc });
+            _libraryQueryService.GetMovies("concert", null).Returns(new List<Movie> { concertDoc });
+            var boxSet = SetUpNewCollection("Music Docs");
+
+            // Act
+            await _sut.ExecuteAsync();
+
+            // Assert
+            await _collectionManager.Received(1).AddToCollectionAsync(
+                boxSet.Id,
+                Arg.Is<IEnumerable<Guid>>(ids => ids.SequenceEqual(new[] { musicDoc.Id })));
+            _libraryQueryService.DidNotReceive().GetMovies("!concert", null);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WithExcludedTag_NoMatches_DoesNotQueryExcludedTag()
+        {
+            // Arrange: nothing matches the include tag, so there is nothing to exclude from
+            var pair = new TagTitlePair("samurai, !family", "Samurai");
+            _configurationProvider.GetTagTitlePairs().Returns(new List<TagTitlePair> { pair });
+
+            _libraryQueryService.GetMovies(Arg.Any<string>(), null).Returns(new List<Movie>());
+            _libraryQueryService.GetSeries(Arg.Any<string>(), null).Returns(new List<Series>());
+            var boxSet = SetUpNewCollection("Samurai");
+
+            // Act
+            await _sut.ExecuteAsync();
+
+            // Assert
+            await _collectionManager.DidNotReceive().AddToCollectionAsync(boxSet.Id, Arg.Any<IEnumerable<Guid>>());
+            _libraryQueryService.DidNotReceive().GetMovies("family", null);
+        }
+
         private BoxSet SetUpNewCollection(string name)
         {
             _libraryManager.GetItemList(Arg.Any<InternalItemsQuery>())

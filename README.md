@@ -45,6 +45,9 @@ Individual episodes can be tagged too. For example, tag a show's holiday special
 1. For more control, use the **+** button on a collection to add a filter line that narrows it down. Put the subject on the first line and the narrower type on the filter line. Items must match the first line **and** the filter line, and commas on either line mean OR:
     - `music, band, rock music` filtered by `documentary` = music documentaries
     - `sports, hockey, football` filtered by `documentary, biography` = sports documentaries and biographies
+1. To keep items out of a collection, prefix a tag with `!`. Items carrying any excluded tag are removed, whatever the matching mode (works on the filter line too):
+    - `adult animation, !anime` (AND) = adult animation that is not anime
+    - `samurai, !family, !animation` = samurai titles that are neither family nor animation
 1. Choose "Save"
 1. Choose "Sync Smart Collections For Tags"
 1. Viola! Your Smart Collections now exist.
