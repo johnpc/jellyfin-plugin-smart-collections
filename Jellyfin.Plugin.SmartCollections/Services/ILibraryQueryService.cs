@@ -11,17 +11,17 @@ namespace Jellyfin.Plugin.SmartCollections.Services
     public interface ILibraryQueryService
     {
         /// <summary>
-        /// Gets movies matching a single term (tag/genre, decade such as <c>1980s</c>, or person).
+        /// Gets movies matching a single term (tag/genre/studio, decade such as <c>1980s</c>, or person).
         /// </summary>
-        /// <param name="term">The tag, genre, decade, or person name to search.</param>
+        /// <param name="term">The tag, genre, studio, decade, or person name to search.</param>
         /// <param name="specificPerson">Optional person to search by actor/director.</param>
         /// <returns>Matching movies.</returns>
         IEnumerable<Movie> GetMovies(string term, Person? specificPerson = null);
 
         /// <summary>
-        /// Gets series matching a single term (tag/genre, decade such as <c>1980s</c>, or person).
+        /// Gets series matching a single term (tag/genre/studio, decade such as <c>1980s</c>, or person).
         /// </summary>
-        /// <param name="term">The tag, genre, decade, or person name to search.</param>
+        /// <param name="term">The tag, genre, studio, decade, or person name to search.</param>
         /// <param name="specificPerson">Optional person to search by actor/director.</param>
         /// <returns>Matching series.</returns>
         IEnumerable<Series> GetSeries(string term, Person? specificPerson = null);
@@ -29,7 +29,7 @@ namespace Jellyfin.Plugin.SmartCollections.Services
         /// <summary>
         /// Gets movies matching ALL given terms (AND logic).
         /// </summary>
-        /// <param name="terms">Tags/genres that must all match.</param>
+        /// <param name="terms">Tags/genres/studios that must all match.</param>
         /// <param name="specificPerson">Optional person filter.</param>
         /// <returns>Movies matching all terms.</returns>
         IEnumerable<Movie> GetMoviesWithAndMatching(string[] terms, Person? specificPerson = null);
@@ -37,7 +37,7 @@ namespace Jellyfin.Plugin.SmartCollections.Services
         /// <summary>
         /// Gets series matching ALL given terms (AND logic).
         /// </summary>
-        /// <param name="terms">Tags/genres that must all match.</param>
+        /// <param name="terms">Tags/genres/studios that must all match.</param>
         /// <param name="specificPerson">Optional person filter.</param>
         /// <returns>Series matching all terms.</returns>
         IEnumerable<Series> GetSeriesWithAndMatching(string[] terms, Person? specificPerson = null);

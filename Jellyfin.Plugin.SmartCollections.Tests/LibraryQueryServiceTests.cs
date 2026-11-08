@@ -91,6 +91,112 @@ namespace Jellyfin.Plugin.SmartCollections.Tests
         }
 
         [Fact]
+        public void GetMovies_ByStudio_ReturnsMoviesFromThatStudio()
+        {
+            // Arrange
+            var netflix = CreateStudio("Netflix");
+            var netflixMovie = CreateMovie("Netflix Original");
+            _libraryManager.GetItemList(Arg.Any<InternalItemsQuery>())
+                .Returns(new List<BaseItem>());
+            ArrangeStudioLookup(netflix);
+            _libraryManager.GetItemList(Arg.Is<InternalItemsQuery>(q => q.StudioIds.Contains(netflix.Id)))
+                .Returns(new List<BaseItem> { netflixMovie });
+
+            // Act
+            var results = _sut.GetMovies("Netflix").ToList();
+
+            // Assert
+            results.Should().ContainSingle().Which.Should().Be(netflixMovie);
+            _libraryManager.Received(1).GetItemList(Arg.Is<InternalItemsQuery>(q =>
+                q.IncludeItemTypes.Single() == BaseItemKind.Movie &&
+                q.StudioIds.Contains(netflix.Id) &&
+                q.Tags.Length == 0 &&
+                q.Genres.Count == 0));
+        }
+
+        [Fact]
+        public void GetSeries_ByStudio_ReturnsSeriesFromThatStudio()
+        {
+            // Arrange
+            var hbo = CreateStudio("HBO");
+            var hboSeries = CreateSeries("HBO Drama");
+            _libraryManager.GetItemList(Arg.Any<InternalItemsQuery>())
+                .Returns(new List<BaseItem>());
+            ArrangeStudioLookup(hbo);
+            _libraryManager.GetItemList(Arg.Is<InternalItemsQuery>(q => q.StudioIds.Contains(hbo.Id)))
+                .Returns(new List<BaseItem> { hboSeries });
+
+            // Act
+            var results = _sut.GetSeries("hbo").ToList();
+
+            // Assert
+            results.Should().ContainSingle().Which.Should().Be(hboSeries);
+        }
+
+        [Fact]
+        public void GetMovies_StudioLookupReturnsDifferentName_DoesNotQueryByStudio()
+        {
+            // Arrange
+            var otherStudio = CreateStudio("Netflix Animation");
+            _libraryManager.GetItemList(Arg.Any<InternalItemsQuery>())
+                .Returns(new List<BaseItem>());
+            ArrangeStudioLookup(otherStudio);
+
+            // Act
+            var results = _sut.GetMovies("Netflix").ToList();
+
+            // Assert
+            results.Should().BeEmpty();
+            _libraryManager.DidNotReceive().GetItemList(Arg.Is<InternalItemsQuery>(q => q.StudioIds.Any()));
+        }
+
+        [Fact]
+        public void GetMovies_TagAndStudioBothMatch_ReturnsDistinctUnion()
+        {
+            // Arrange
+            var netflix = CreateStudio("Netflix");
+            var taggedMovie = CreateMovie("Tagged Movie");
+            var studioMovie = CreateMovie("Studio Movie");
+            var bothMovie = CreateMovie("Tagged Studio Movie");
+            _libraryManager.GetItemList(Arg.Any<InternalItemsQuery>())
+                .Returns(new List<BaseItem>());
+            _libraryManager.GetItemList(Arg.Is<InternalItemsQuery>(q => q.Tags.Contains("Netflix")))
+                .Returns(new List<BaseItem> { taggedMovie, bothMovie });
+            ArrangeStudioLookup(netflix);
+            _libraryManager.GetItemList(Arg.Is<InternalItemsQuery>(q => q.StudioIds.Contains(netflix.Id)))
+                .Returns(new List<BaseItem> { studioMovie, bothMovie });
+
+            // Act
+            var results = _sut.GetMovies("Netflix").ToList();
+
+            // Assert
+            results.Should().BeEquivalentTo(new[] { taggedMovie, bothMovie, studioMovie });
+        }
+
+        [Fact]
+        public void GetMoviesWithAndMatching_StudioAndGenre_ReturnsIntersection()
+        {
+            // Arrange
+            var netflix = CreateStudio("Netflix");
+            var netflixComedy = CreateMovie("Netflix Comedy");
+            var netflixDrama = CreateMovie("Netflix Drama");
+            var otherComedy = CreateMovie("Other Comedy");
+            _libraryManager.GetItemList(Arg.Any<InternalItemsQuery>())
+                .Returns(new List<BaseItem>());
+            ArrangeStudioLookup(netflix);
+            _libraryManager.GetItemList(Arg.Is<InternalItemsQuery>(q => q.StudioIds.Contains(netflix.Id)))
+                .Returns(new List<BaseItem> { netflixComedy, netflixDrama });
+            _libraryManager.GetItemList(Arg.Is<InternalItemsQuery>(q => q.Genres.Contains("comedy")))
+                .Returns(new List<BaseItem> { netflixComedy, otherComedy });
+
+            // Act
+            var results = _sut.GetMoviesWithAndMatching(new[] { "Netflix", "comedy" }).ToList();
+
+            // Assert
+            results.Should().ContainSingle().Which.Should().Be(netflixComedy);
+        }
+
+        [Fact]
         public void GetMoviesWithAndMatching_EmptyTerms_ReturnsEmpty()
         {
             // Act
@@ -107,13 +213,16 @@ namespace Jellyfin.Plugin.SmartCollections.Tests
             var movieBoth = CreateMovie("Movie Both");
             var movieFirst = CreateMovie("Movie First Only");
 
-            // First call returns both movies, second call returns only movieBoth
+            // Each term issues a tag query, a genre query, then a studio lookup (no studio => no further query).
+            // First term's tag query returns both movies, second term's returns only movieBoth
             _libraryManager.GetItemList(Arg.Any<InternalItemsQuery>())
                 .Returns(
                     new List<BaseItem> { movieBoth, movieFirst },
                     new List<BaseItem>(), // empty for genre query of first term
+                    new List<BaseItem>(), // no studio named after first term
                     new List<BaseItem> { movieBoth },
-                    new List<BaseItem>()); // empty for genre query of second term
+                    new List<BaseItem>(), // empty for genre query of second term
+                    new List<BaseItem>()); // no studio named after second term
 
             // Act
             var results = _sut.GetMoviesWithAndMatching(new[] { "action", "comedy" }).ToList();
@@ -173,7 +282,8 @@ namespace Jellyfin.Plugin.SmartCollections.Tests
             _libraryManager.Received(1).GetItemList(Arg.Is<InternalItemsQuery>(q =>
                 q.IncludeItemTypes.Single() == BaseItemKind.Episode &&
                 q.Tags.Single() == "christmas" &&
-                q.Genres.Count == 0));
+                q.Genres.Count == 0 &&
+                !q.StudioIds.Any()));
         }
 
         [Fact]
@@ -363,6 +473,24 @@ namespace Jellyfin.Plugin.SmartCollections.Tests
         private static Episode CreateEpisode(string name)
         {
             return new Episode
+            {
+                Name = name,
+                Id = Guid.NewGuid(),
+            };
+        }
+
+        private void ArrangeStudioLookup(Studio studio)
+        {
+            // Jellyfin's Name filter is case-insensitive, so the lookup mock is too.
+            _libraryManager.GetItemList(Arg.Is<InternalItemsQuery>(q =>
+                    q.IncludeItemTypes.Contains(BaseItemKind.Studio) &&
+                    string.Equals(q.Name, studio.Name, StringComparison.OrdinalIgnoreCase)))
+                .Returns(new List<BaseItem> { studio });
+        }
+
+        private static Studio CreateStudio(string name)
+        {
+            return new Studio
             {
                 Name = name,
                 Id = Guid.NewGuid(),

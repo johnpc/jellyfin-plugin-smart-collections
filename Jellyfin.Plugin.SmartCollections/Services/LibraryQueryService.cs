@@ -11,7 +11,7 @@ using MediaBrowser.Model.Entities;
 namespace Jellyfin.Plugin.SmartCollections.Services
 {
     /// <summary>
-    /// Queries the Jellyfin library for movies, series, and episodes by tag, genre, decade, or person.
+    /// Queries the Jellyfin library for movies, series, and episodes by tag, genre, studio, decade, or person.
     /// </summary>
     public class LibraryQueryService : ILibraryQueryService
     {
@@ -37,7 +37,7 @@ namespace Jellyfin.Plugin.SmartCollections.Services
                 return GetItemsByPerson<Movie>(BaseItemKind.Movie, specificPerson.Name);
             }
 
-            return GetItemsByTagGenreOrDecade<Movie>(BaseItemKind.Movie, term);
+            return GetItemsByTerm<Movie>(BaseItemKind.Movie, term);
         }
 
         /// <inheritdoc />
@@ -48,7 +48,7 @@ namespace Jellyfin.Plugin.SmartCollections.Services
                 return GetItemsByPerson<Series>(BaseItemKind.Series, specificPerson.Name);
             }
 
-            return GetItemsByTagGenreOrDecade<Series>(BaseItemKind.Series, term);
+            return GetItemsByTerm<Series>(BaseItemKind.Series, term);
         }
 
         /// <inheritdoc />
@@ -103,7 +103,7 @@ namespace Jellyfin.Plugin.SmartCollections.Services
             }
 
             // Only the term naming the person is resolved by person; every other
-            // term must still match by tag/genre, otherwise AND degrades to "all of this person's items".
+            // term must still match by tag/genre/studio, otherwise AND degrades to "all of this person's items".
             Person? PersonFor(string term) =>
                 specificPerson != null && term.Equals(specificPerson.Name, StringComparison.OrdinalIgnoreCase)
                     ? specificPerson
@@ -134,10 +134,10 @@ namespace Jellyfin.Plugin.SmartCollections.Services
             }).OfType<T>();
         }
 
-        private IEnumerable<T> GetItemsByTagGenreOrDecade<T>(BaseItemKind kind, string term)
+        private IEnumerable<T> GetItemsByTerm<T>(BaseItemKind kind, string term)
             where T : BaseItem
         {
-            // A decade term (e.g. "1980s") matches by production year instead of tag/genre.
+            // A decade term (e.g. "1980s") matches by production year instead of tag/genre/studio.
             // Episodes deliberately skip this and keep matching on tags only.
             if (DecadeTerm.TryParse(term, out var years))
             {
@@ -160,7 +160,44 @@ namespace Jellyfin.Plugin.SmartCollections.Services
                 Genres = new[] { term },
             }).OfType<T>();
 
-            return byTags.Union(byGenres);
+            // A term such as "Netflix" or "HBO" also matches items whose Studios contain it,
+            // so users don't have to hand-tag every show by its network.
+            var byStudios = GetItemsByStudio<T>(kind, term);
+
+            return byTags.Union(byGenres).Union(byStudios);
+        }
+
+        private IEnumerable<T> GetItemsByStudio<T>(BaseItemKind kind, string studioName)
+            where T : BaseItem
+        {
+            var studio = FindStudio(studioName);
+            if (studio == null)
+            {
+                return Enumerable.Empty<T>();
+            }
+
+            return _libraryManager.GetItemList(new InternalItemsQuery
+            {
+                IncludeItemTypes = new[] { kind },
+                IsVirtualItem = false,
+                Recursive = true,
+                StudioIds = new[] { studio.Id },
+            }).OfType<T>();
+        }
+
+        private Studio? FindStudio(string name)
+        {
+            // Resolve the studio through a query (not ILibraryManager.GetStudio, which creates the
+            // studio when it is missing) so an unknown term never leaves stray studio items behind.
+            var studioQuery = new InternalItemsQuery
+            {
+                IncludeItemTypes = new[] { BaseItemKind.Studio },
+                Name = name,
+            };
+
+            return _libraryManager.GetItemList(studioQuery)
+                .OfType<Studio>()
+                .FirstOrDefault(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
         }
 
         private IEnumerable<T> GetItemsByPerson<T>(BaseItemKind kind, string personName)
